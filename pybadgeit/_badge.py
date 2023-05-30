@@ -15,15 +15,18 @@ class Badge(ABC):
     @abstractmethod
     def url(self, mode: Literal['dark', 'light', 'clean'] = 'clean') -> str | URL:
         """
+        URL of the badge image.
 
         Parameters
         ----------
-        mode : {}
-            clean: URL of the badge image without any customization.
+        mode : {'dark', 'light', 'clean'}
+            'dark' and 'light' provide the URL of the badge image customized for dark and light themes,
+            respectively, while 'clean' gives the URL of the badge image without any customization.
 
         Returns
         -------
-
+        Any object whose __str__ method returns the desired URL. This could be a string, or any other object,
+        such as a `pylinks.url.URL` object.
         """
         ...
 
@@ -55,6 +58,8 @@ class Badge(ABC):
         link : pylinks.URL
             Link URL, i.e. the URL that opens when clicking on the badge.
             Corresponds to the 'href' attribute of the A (anchor) element in HTML.
+        default_theme : {'light', 'dark'}
+            The default theme to choose e.g. when the browser doesn't support light/dark themes.
         """
         self.alt = alt
         self.title = title
@@ -65,7 +70,21 @@ class Badge(ABC):
         self.default_theme = default_theme
         return
 
-    def as_html_picture(self, link: bool = True):
+    def as_html_picture(self, link: bool = True) -> html.PICTURE | html.A:
+        """
+        The badge as an HTML 'picture' element, that may be wrapped by an anchor ('a') element.
+
+        Parameters
+        ----------
+        link : bool, default: True
+            Whether to wrap the picture element in an anchor element, to link to the address defined in `self.link`.
+
+        Returns
+        -------
+        html_element : pyhtmlit.element.PICTURE | pyhtmlit.element.A
+            An HTML element from the `pyhtmlit` package, which among others, has a __str__ method to
+            output the HTML syntax of the element.
+        """
         picture = html.PICTURE(
             img=self.as_html_img(link=False),
             sources=[
@@ -76,6 +95,20 @@ class Badge(ABC):
         return html.A(href=self.link, content=[picture]) if link else picture
 
     def as_html_img(self, link: bool = True):
+        """
+        The badge as an HTML 'img' element, that may be wrapped by an anchor ('a') element.
+
+        Parameters
+        ----------
+        link : bool, default: True
+            Whether to wrap the img element in an anchor element, to link to the address defined in `self.link`.
+
+        Returns
+        -------
+        html_element : pyhtmlit.element.IMG | pyhtmlit.element.A
+            An HTML element from the `pyhtmlit` package, which among others, has a __str__ method to
+            output the HTML syntax of the element.
+        """
         img = html.IMG(
             src=self.url(self.default_theme),
             alt=self.alt,
