@@ -70,7 +70,9 @@ class Badge(ABC):
         self.default_theme = default_theme
         return
 
-    def as_html_picture(self, link: bool = True) -> html.PICTURE | html.A:
+    def as_html_picture(
+            self, link: bool = True, html_tag_sep: str = '\n', html_line_indent: str = '\t'
+    ) -> html.PICTURE | html.A:
         """
         The badge as an HTML 'picture' element, that may be wrapped by an anchor ('a') element.
 
@@ -86,15 +88,17 @@ class Badge(ABC):
             output the HTML syntax of the element.
         """
         picture = html.PICTURE(
-            img=self.as_html_img(link=False),
+            img=self.as_html_img(link=False, html_tag_sep=html_tag_sep, html_line_indent=html_line_indent),
             sources=[
                 html.SOURCE(srcset=self.url('dark'), media="(prefers-color-scheme: dark)"),
                 html.SOURCE(srcset=self.url('light'), media="(prefers-color-scheme: light)")
-            ]
+            ],
+            tag_seperator=html_tag_sep,
+            content_indent=html_line_indent
         )
-        return html.A(href=self.link, content=[picture]) if link else picture
+        return html.A(href=self.link, content=[picture]) if (link and self.link is not None) else picture
 
-    def as_html_img(self, link: bool = True):
+    def as_html_img(self, link: bool = True, html_tag_sep: str = '\n', html_line_indent: str = '\t'):
         """
         The badge as an HTML 'img' element, that may be wrapped by an anchor ('a') element.
 
@@ -118,7 +122,7 @@ class Badge(ABC):
             align=self.align,
         )
         if link and self.link:
-            return html.A(href=self.link, content=[img])
+            return html.A(href=self.link, content=[img], content_sep=html_tag_sep, indent=html_line_indent)
         return img
 
     def __str__(self):
