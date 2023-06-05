@@ -30,7 +30,7 @@ class ShieldsBadge(_badge.Badge):
             style: Literal['plastic', 'flat', 'flat-square', 'for-the-badge', 'social'] = None,
             left_text: str = None,
             right_text: str = None,
-            logo: str = None,
+            logo: str | tuple[str, str] = None,
             logo_width: float = None,
             logo_color_light: str = None,
             logo_color_dark: str = None,
@@ -140,10 +140,11 @@ class ShieldsBadge(_badge.Badge):
             self._logo = value
         elif isinstance(value, Sequence):
             with open(value[1], 'rb') as img_file:
-                self._logo = bytes(
-                    f'data:image/{value[0].lower()};base64,{base64.b64encode(img_file.read()).decode()}',
-                    'utf8'
-                )
+                self._logo = f'data:image/{value[0].lower()};base64,{base64.b64encode(img_file.read()).decode()}'
+                # self._logo = bytes(
+                #     f'data:image/{value[0].lower()};base64,{base64.b64encode(img_file.read()).decode()}',
+                #     'utf8'
+                # )
         else:
             raise ValueError("`logo` expects either a string or a sequence of two strings.")
         return
@@ -169,6 +170,9 @@ class GitHub:
             self,
             username: str,
             repo_name: str,
+            logo: Optional[str] = 'github',
+            logo_color_light: Optional[str] = 'FFF',
+            logo_color_dark: Optional[str] = 'FFF',
     ):
         """
         Parameters
@@ -180,14 +184,26 @@ class GitHub:
         """
         self.username = username
         self.repo_name = repo_name
+        self.logo = logo
+        self.logo_color_light = logo_color_light
+        self.logo_color_dark = logo_color_dark
         self._url = _BASE_URL / 'github'
         self._address = f'{username}/{repo_name}'
         self._repo_link = pylinks.github.user(username).repo(repo_name)
-        self._logo_config = {'logo': 'github', 'logo_color_dark': 'white'}
         return
 
+    @property
+    def _logo_config(self):
+        return {'logo': self.logo, 'logo_color_dark': self.logo_color_dark, 'logo_color_light': self.logo_color_light}
+
     def workflow_status(
-            self, filename: str, branch: Optional[str] = None, description: Optional[str] = None
+            self,
+            filename: str,
+            branch: Optional[str] = None,
+            description: Optional[str] = None,
+            left_text: Optional[str] = None,
+            alt: Optional[str] = None,
+
     ) -> ShieldsBadge:
         """Status (failing/passing) of a GitHub workflow.
 
@@ -208,10 +224,17 @@ class GitHub:
             link = self._repo_link.branch(branch).workflow(filename)
         title = (
             f"""Status of the GitHub Actions workflow '{filename}'{f"on branch '{branch}'" if branch else ''}. """
-            f"""{f"{description.rstrip('.')}. " if description else ""}"""
-            'Click for more details.'
+            f"""{f"{description.strip().rstrip('.')}. " if description else ""}"""
+            'Click to see more details in the Actions section of the repository.'
         )
-        return ShieldsBadge(path=path, link=link, alt='GitHub Workflow Status', title=title, **self._logo_config)
+        return ShieldsBadge(
+            path=path,
+            link=link,
+            left_text=left_text,
+            alt=alt if alt else (left_text if alt is None else None),
+            title=title,
+            **self._logo_config
+        )
 
     def pr_issue(
             self,
@@ -439,6 +462,12 @@ class Conda:
 def build_read_the_docs(
         project: str,
         version: Optional[str] = None,
+        left_text: Optional[str] = 'Website',
+        alt: Optional[str] = 'Website Build Status',
+        title: Optional[str] = 'Website build status. Click to see more details on the ReadTheDocs platform.',
+        logo: Optional[str] = 'readthedocs',
+        logo_color_light: str = 'FFF',
+        logo_color_dark: str = 'FFF',
 ) -> ShieldsBadge:
     """Build status of a ReadTheDocs project.
 
@@ -448,10 +477,20 @@ def build_read_the_docs(
         ReadTheDocs project name.
     version : str, optional
         Specific ReadTheDocs version of the documentation to query.
+        https://img.shields.io/readthedocs/opencadd?logo=readthedocs&logoColor=%238CA1AF
+    left_text : str, default = 'Website'
+        Text on the left-hand side of the badge. If set to None, the shields.io default ('docs') will be selected.
+
     """
     return ShieldsBadge(
         path=_BASE_URL/'readthedocs'/f"{project}{f'/{version}' if version else ''}",
-        link=pylinks.readthedocs(project).build_status_url
+        link=pylinks.readthedocs.project(project).build_status,
+        left_text=left_text,
+        alt=alt,
+        title=title,
+        logo=logo,
+        logo_color_dark=logo_color_dark,
+        logo_color_light=logo_color_light,
     )
 
 
@@ -459,6 +498,12 @@ def coverage_codecov(
         user: str,
         repo: str,
         branch: Optional[str] = None,
+        left_text: Optional[str] = 'Code Coverage',
+        alt: Optional[str] = 'Code Coverage',
+        title: Optional[str] = 'Source code coverage by the test suite. Click to see more details on codecov.io.',
+        logo: Optional[str] = 'codecov',
+        logo_color_light: str = 'FFF',
+        logo_color_dark: str = 'FFF',
 ) -> ShieldsBadge:
     """Code coverage calculated by codecov.io.
 
@@ -473,7 +518,13 @@ def coverage_codecov(
     """
     return ShieldsBadge(
         path=_BASE_URL/f"codecov/c/github/{user}/{repo}{f'/{branch}' if branch else ''}",
-        link=f"https://codecov.io/gh/{user}/{repo}{f'/branch/{branch}' if branch else ''}"
+        link=f"https://codecov.io/gh/{user}/{repo}{f'/branch/{branch}' if branch else ''}",  #TODO: use PyLinks
+        left_text=left_text,
+        alt=alt,
+        title=title,
+        logo=logo,
+        logo_color_light=logo_color_light,
+        logo_color_dark=logo_color_dark,
     )
 
 
