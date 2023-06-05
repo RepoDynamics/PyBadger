@@ -136,3 +136,8 @@ class Badge(ABC):
     @link.setter
     def link(self, value):
         self._link = None if not value else URL(str(value))
+
+    def display(self):
+        from IPython.display import display, HTML
+        display(HTML(str(self)))
+        return
