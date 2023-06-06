@@ -4,6 +4,7 @@
 # Standard libraries
 from typing import Literal, Optional
 from abc import ABC, abstractmethod
+import copy
 # Non-standard libraries
 from pylinks.url import URL
 from pyhtmlit import element as html
@@ -39,6 +40,7 @@ class Badge(ABC):
             align: Optional[str],
             link: Optional[str | URL],
             default_theme: Literal['light', 'dark'],
+            html_syntax: str | dict[Literal['tag_seperator', 'content_indent'], str] = None,
     ):
         """
         Parameters
@@ -68,10 +70,12 @@ class Badge(ABC):
         self.align = align
         self.link = link
         self.default_theme = default_theme
+        self._html_syntax = {'tag_seperator': '\n', 'content_indent': '\t'}
+        self.html_syntax = html_syntax
         return
 
     def as_html_picture(
-            self, link: bool = True, html_tag_sep: str = '\n', html_line_indent: str = '\t'
+            self, link: bool = True, tag_seperator: Optional[str] = None, content_indent: Optional[str] = None
     ) -> html.PICTURE | html.A:
         """
         The badge as an HTML 'picture' element, that may be wrapped by an anchor ('a') element.
@@ -87,18 +91,20 @@ class Badge(ABC):
             An HTML element from the `pyhtmlit` package, which among others, has a __str__ method to
             output the HTML syntax of the element.
         """
+        tag_seperator = tag_seperator or self.html_syntax['tag_seperator']
+        content_indent = content_indent or self.html_syntax['content_indent']
         picture = html.PICTURE(
-            img=self.as_html_img(link=False, html_tag_sep=html_tag_sep, html_line_indent=html_line_indent),
+            img=self.as_html_img(link=False, tag_seperator=tag_seperator, content_indent=content_indent),
             sources=[
                 html.SOURCE(srcset=self.url('dark'), media="(prefers-color-scheme: dark)"),
                 html.SOURCE(srcset=self.url('light'), media="(prefers-color-scheme: light)")
             ],
-            tag_seperator=html_tag_sep,
-            content_indent=html_line_indent
+            tag_seperator=tag_seperator,
+            content_indent=content_indent
         )
-        return html.A(href=self.link, content=[picture]) if (link and self.link is not None) else picture
+        return html.A(href=self.link, content=[picture], tag_seperator=tag_seperator, content_indent=content_indent) if (link and self.link is not None) else picture
 
-    def as_html_img(self, link: bool = True, html_tag_sep: str = '\n', html_line_indent: str = '\t'):
+    def as_html_img(self, link: bool = True, tag_seperator: Optional[str] = None, content_indent: Optional[str] = None):
         """
         The badge as an HTML 'img' element, that may be wrapped by an anchor ('a') element.
 
@@ -113,6 +119,8 @@ class Badge(ABC):
             An HTML element from the `pyhtmlit` package, which among others, has a __str__ method to
             output the HTML syntax of the element.
         """
+        tag_seperator = tag_seperator or self.html_syntax['tag_seperator']
+        content_indent = content_indent or self.html_syntax['content_indent']
         img = html.IMG(
             src=self.url(self.default_theme),
             alt=self.alt,
@@ -122,7 +130,7 @@ class Badge(ABC):
             align=self.align,
         )
         if link and self.link:
-            return html.A(href=self.link, content=[img], content_sep=html_tag_sep, indent=html_line_indent)
+            return html.A(href=self.link, content=[img], tag_seperator=tag_seperator, content_indent=content_indent)
         return img
 
     def __str__(self):
@@ -136,6 +144,28 @@ class Badge(ABC):
     @link.setter
     def link(self, value):
         self._link = None if not value else URL(str(value))
+        return
+
+    @property
+    def html_syntax(self):
+        return copy.deepcopy(self._html_syntax)
+
+    @html_syntax.setter
+    def html_syntax(self, value):
+        if value is None:
+            return
+        if isinstance(value, str):
+            self._html_syntax = {'tag_seperator': value, 'content_indent': value}
+            return
+        if isinstance(value, dict):
+            for key, val in value.items():
+                if key not in ('tag_seperator', 'content_indent'):
+                    raise ValueError()
+                if not isinstance(val, str):
+                    raise ValueError()
+                self._html_syntax[key] = val
+            return
+        raise ValueError()
 
     def display(self):
         from IPython.display import display, HTML
