@@ -58,7 +58,7 @@ class PePyBadge(_badge.Badge):
         super().__init__(
             alt=alt, title=title, width=width, height=height, align=align, link=link, default_theme=default_theme
         )
-        self._url: URL = URL(str(path))
+        self._url: URL = url(str(path))
         self.left_text: str = left_text
         self.left_color_light: str = left_color_light
         self.left_color_dark: str = left_color_dark
