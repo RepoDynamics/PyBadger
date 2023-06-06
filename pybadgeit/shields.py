@@ -10,10 +10,12 @@ References
 # Standard libraries
 from typing import Optional, Sequence, Literal
 import base64
+import copy
 # Non-standard libraries
 import pylinks
 from pylinks import url
 from pylinks.url import URL
+import pyhtmlit as html
 # Self
 from pybadgeit import _badge
 
@@ -28,16 +30,9 @@ class ShieldsBadge(_badge.Badge):
             self,
             path: str,
             style: Literal['plastic', 'flat', 'flat-square', 'for-the-badge', 'social'] = None,
-            left_text: str = None,
-            right_text: str = None,
+            text: str | dict[Literal['left', 'right'], str] = None,
             logo: str | tuple[str, str] = None,
-            logo_width: float = None,
-            logo_color_light: str = None,
-            logo_color_dark: str = None,
-            left_color_light: str = None,
-            left_color_dark: str = None,
-            right_color_light: str = None,
-            right_color_dark: str = None,
+            color: str | dict[str, str | dict[str, str]] = None,
             cache_time: int = None,
             alt: str = None,
             title: str = None,
@@ -46,6 +41,7 @@ class ShieldsBadge(_badge.Badge):
             align: str = None,
             link: str | URL = None,
             default_theme: Literal['light', 'dark'] = 'dark',
+            html_syntax: str | dict[Literal['tag_seperator', 'content_indent'], str] = None
     ):
         """
         Parameters
@@ -79,22 +75,27 @@ class ShieldsBadge(_badge.Badge):
         cache_time : int
             HTTP cache lifetime in seconds.
         """
-        super().__init__(
-            alt=alt, title=title, width=width, height=height, align=align, link=link, default_theme=default_theme
-        )
+
         self._url: URL = url(str(path))
         self.style: Literal['plastic', 'flat', 'flat-square', 'for-the-badge', 'social'] = style
-        self.left_text: str = left_text
-        self.right_text: str = right_text
+
+        self._text = self._init_text()
+        self.text = text
+
+        self._logo = self._init_logo()
         self.logo = logo
-        self.logo_width: float = logo_width
-        self.logo_color_light: str = logo_color_light
-        self.logo_color_dark: str = logo_color_dark
-        self.left_color_light: str = left_color_light
-        self.left_color_dark: str = left_color_dark
-        self.right_color_light: str = right_color_light
-        self.right_color_dark: str = right_color_dark
+
+        self._color = self._init_color()
+        self.color = color
+
         self.cache_time: int = cache_time
+
+        if alt is not False:
+            alt = alt or self.text['left'] or self.text['right']
+        super().__init__(
+            alt=alt, title=title, width=width, height=height, align=align, link=link, default_theme=default_theme,
+            html_syntax=html_syntax
+        )
         return
 
     def url(self, mode: Literal['light', 'dark', 'clean'] = 'dark') -> URL:
@@ -116,14 +117,14 @@ class ShieldsBadge(_badge.Badge):
         if mode == 'clean':
             return url
         for key, val in (
-                ('label', self.left_text),
-                ('message', self.right_text),
+                ('label', self.text['left']),
+                ('message', self.text['right']),
                 ('style', self.style),
-                ('labelColor', self.left_color_dark if mode == 'dark' else self.left_color_light),
-                ('color', self.right_color_dark if mode == 'dark' else self.right_color_light),
-                ('logo', self.logo),
-                ('logoColor', self.logo_color_dark if mode == 'dark' else self.logo_color_light),
-                ('logoWidth', self.logo_width),
+                ('labelColor', self.color['left'][mode]),
+                ('color', self.color['right'][mode]),
+                ('logo', self.logo['data']),
+                ('logoColor', self.logo['color'][mode]),
+                ('logoWidth', self.logo['width']),
                 ('cacheSeconds', self.cache_time),
         ):
             if val is not None:
@@ -136,19 +137,124 @@ class ShieldsBadge(_badge.Badge):
 
     @logo.setter
     def logo(self, value):
-        if value is None or isinstance(value, str):
-            self._logo = value
-        elif isinstance(value, Sequence):
-            with open(value[1], 'rb') as img_file:
-                self._logo = f'data:image/{value[0].lower()};base64,{base64.b64encode(img_file.read()).decode()}'
-                # self._logo = bytes(
-                #     f'data:image/{value[0].lower()};base64,{base64.b64encode(img_file.read()).decode()}',
-                #     'utf8'
-                # )
-        else:
-            raise ValueError("`logo` expects either a string or a sequence of two strings.")
+
+        def encode_logo(content, img_type: str = 'png'):
+            return f'data:image/{img_type if img_type else "png"};base64,{base64.b64encode(content).decode()}'
+
+        if value is None:
+            self._logo = self._init_logo()
+            return
+        if isinstance(value, str):
+            self._logo['data'] = value
+            return
+        if not isinstance(value, dict):
+            raise ValueError(f"`logo` expects either a string or a dict, but got {type(value)}.")
+        for key, val in value.items():
+            if key == 'width':
+                self._logo['width'] = val
+            elif key == 'color':
+                if isinstance(val, str):
+                    self._logo['color'] = {'dark': val, 'light': val}
+                elif isinstance(val, dict):
+                    for key2, val2 in val.items():
+                        if key2 not in ('dark', 'light'):
+                            raise ValueError()
+                        self._logo['color'][key2] = val2
+                else:
+                    raise ValueError()
+            elif key == 'data':
+                if isinstance(val, str):
+                    self._logo['data'] = val
+                elif isinstance(val, dict):
+                    if 'type' not in val:
+                        raise ValueError()
+                    if 'value' not in val:
+                        raise ValueError()
+                    if val['type'] == 'simpleicons':
+                        self._logo['data'] = val
+                    elif val['type'] == 'url':
+                        content = pylinks.http.request(url=val['value'], response_type='bytes')
+                        self._logo['data'] = encode_logo(content)
+                    elif val['type'] == 'local':
+                        with open(val['value'], 'rb') as f:
+                            content = f.read()
+                            self._logo = encode_logo(content)
+                    elif val['type'] == 'bytes':
+                        self._logo = encode_logo(content)
+                    else:
+                        raise ValueError()
+            else:
+                raise ValueError()
         return
 
+    @property
+    def color(self):
+        return copy.deepcopy(self._color)
+
+    @color.setter
+    def color(self, value):
+        if value is None:
+            self._color = self._init_color()
+            return
+        if isinstance(value, str):
+            new_colors = {'dark': value, 'light': value}
+            if self._is_static and not self.text['left']:
+                self._color['right'] = new_colors
+                return
+            self._color['left'] = new_colors
+            return
+        if not isinstance(value, dict):
+            return ValueError()
+        for key, val in value.items():
+            if key not in ('left', 'right'):
+                raise ValueError()
+            if isinstance(val, str):
+                self._color[key] = {'dark': val, 'light': val}
+            elif isinstance(val, dict):
+                for key2, val2 in val.items():
+                    if key2 not in ('dark', 'light'):
+                        raise ValueError()
+                    self._color[key][key2] = val2
+            else:
+                raise ValueError()
+        return
+
+    @property
+    def text(self):
+        return copy.deepcopy(self._text)
+
+    @text.setter
+    def text(self, value):
+        if value is None:
+            self._text = self._init_text()
+            return
+        if isinstance(value, str):
+            if self._is_static:
+                self._text = {'left': "", 'right': value}
+                return
+            self._text['left'] = value
+            return
+        if not isinstance(value, dict):
+            raise ValueError()
+        for key, val in value.items():
+            if key not in ('left', 'right'):
+                raise ValueError()
+            if key == 'right' and not self._is_static:
+                raise ValueError()
+            self._text[key] = val
+        return
+
+    @property
+    def _is_static(self):
+        return str(self._url).startswith("https://img.shields.io/static/")
+
+    @staticmethod
+    def _init_text():
+        return {'left': None, 'right': None}
+
+    @staticmethod
+    def _init_color():
+        return {"left": {"dark": None, "light": None}, "right": {"dark": None, "light": None}}
 
 def static(right_text: str, left_text: Optional[str] = "") -> ShieldsBadge:
     """Static badge with custom text on the right-hand side.
