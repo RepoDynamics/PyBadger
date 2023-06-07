@@ -102,7 +102,12 @@ class Badge(ABC):
             tag_seperator=tag_seperator,
             content_indent=content_indent
         )
-        return html.A(href=self.link, content=[picture], tag_seperator=tag_seperator, content_indent=content_indent) if (link and self.link is not None) else picture
+        return picture if not link or self.link is None else html.A(
+            href=self.link,
+            content=[picture],
+            tag_seperator=tag_seperator,
+            content_indent=content_indent
+        )
 
     def as_html_img(self, link: bool = True, tag_seperator: Optional[str] = None, content_indent: Optional[str] = None):
         """
@@ -129,9 +134,9 @@ class Badge(ABC):
             height=self.height,
             align=self.align,
         )
-        if link and self.link:
-            return html.A(href=self.link, content=[img], tag_seperator=tag_seperator, content_indent=content_indent)
-        return img
+        return img if not link or self.link is None else html.A(
+            href=self.link, content=[img], tag_seperator=tag_seperator, content_indent=content_indent
+        )
 
     def __str__(self):
         return str(self.as_html_picture())
