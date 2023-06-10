@@ -162,29 +162,27 @@ class ShieldsBadge(_badge.Badge):
                         self._logo['color'][key2] = val2
                 else:
                     raise ValueError()
-            elif key == 'data':
-                if isinstance(val, str):
-                    self._logo['data'] = val
-                elif isinstance(val, dict):
-                    if 'type' not in val:
-                        raise ValueError()
-                    if 'value' not in val:
-                        raise ValueError()
-                    if val['type'] == 'simpleicons':
-                        self._logo['data'] = val
-                    elif val['type'] == 'url':
-                        content = pylinks.http.request(url=val['value'], response_type='bytes')
-                        self._logo['data'] = encode_logo(content)
-                    elif val['type'] == 'local':
-                        with open(val['value'], 'rb') as f:
-                            content = f.read()
-                            self._logo = encode_logo(content)
-                    elif val['type'] == 'bytes':
-                        self._logo = encode_logo(content)
-                    else:
-                        raise ValueError()
+            elif key == 'simple_icons':
+                self._logo['data'] = val
+            elif key == 'url':
+                content = pylinks.http.request(url=val, response_type='bytes')
+                self._logo['data'] = encode_logo(content)
+            elif key == 'local':
+                with open(val['value'], 'rb') as f:
+                    content = f.read()
+                    self._logo = encode_logo(content)
+            elif key == 'bytes':
+                self._logo = encode_logo(content)
+            elif key == 'github':
+                content = pylinks.http.request(
+                    url=pylinks.github.user(val['user']).repo(val['repo']).branch(val['branch']).file(
+                        val['path'], raw=True
+                    ),
+                    response_type='bytes'
+                )
+                self._logo['data'] = encode_logo(content)
             else:
-                raise ValueError()
+                raise ValueError(f"Key '{key}' in logo spec. {value} is not recognized.")
         return
 
     @property
@@ -206,15 +204,26 @@ class ShieldsBadge(_badge.Badge):
         if not isinstance(value, dict):
             return ValueError()
         for key, val in value.items():
-            if key not in ('left', 'right'):
+            if key not in ('left', 'right', 'dark', 'light'):
                 raise ValueError()
             if isinstance(val, str):
-                self._color[key] = {'dark': val, 'light': val}
+                if key in ('left', 'right'):
+                    self._color[key] = {'dark': val, 'light': val}
+                else:
+                    side = 'right' if self._is_static and not self.text['left'] else 'left'
+                    self._color[side][key] = val
             elif isinstance(val, dict):
                 for key2, val2 in val.items():
-                    if key2 not in ('dark', 'light'):
+                    if key2 not in ('left', 'right', 'dark', 'light'):
                         raise ValueError()
-                    self._color[key][key2] = val2
+                    if key2 in ('dark', 'light'):
+                        if key in ('dark', 'light'):
+                            raise ValueError()
+                        self._color[key][key2] = val2
+                    else:
+                        if key in ('left', 'right'):
+                            raise ValueError()
+                        self._color[key2][key] = val2
             else:
                 raise ValueError()
         return
