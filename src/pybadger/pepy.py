@@ -11,7 +11,7 @@ References
 from typing import Literal, Optional, Sequence
 
 # Non-standard libraries
-from pybadgeit import _badge
+from pybadger import _badge
 from pylinks import url
 from pylinks.url import URL
 
