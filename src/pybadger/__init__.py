@@ -1,4 +1,4 @@
-"""PyBadgeIT"""
+"""PyBadger"""
 
-
-from . import shields, pepy
+from pybadger.badge import Badge, ThemedBadge
+from pybadger import shields, pepy
