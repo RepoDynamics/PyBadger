@@ -29,7 +29,7 @@ def _process_logo(logo: str | Path | URL | tuple[str, str | bytes | Path | URL])
     }
 
     def encode_logo(content, mime_type: str = "png"):
-        return f'data:image/{mime_type};base64,{base64.b64encode(content).decode()}'
+        return f'data:{mime_type};base64,{base64.b64encode(content).decode()}'
 
     if isinstance(logo, tuple):
         if len(logo) != 2:
@@ -48,27 +48,27 @@ def _process_logo(logo: str | Path | URL | tuple[str, str | bytes | Path | URL])
             extension = extension or logo.rsplit(".", 1)[-1]
             if extension not in mime_type:
                 raise ValueError(f"Logo extension '{extension}' is not recognized.")
-            return encode_logo(content, mime_type=extension)
+            return encode_logo(content, mime_type=mime_type[extension])
         return data
 
     if isinstance(data, bytes):
         if extension is None:
             raise ValueError()
-        return encode_logo(data, mime_type=extension)
+        return encode_logo(data, mime_type=mime_type[extension])
 
     if isinstance(data, Path):
         content = data.read_bytes()
         extension = extension or logo.suffix[1:]
         if extension not in mime_type:
             raise ValueError(f"Logo extension '{extension}' is not recognized.")
-        return encode_logo(content, mime_type=extension)
+        return encode_logo(content, mime_type=mime_type[extension])
 
     if isinstance(data, URL):
         content = pylinks.http.request(url=data, response_type="bytes")
         extension = extension or str(data).rsplit(".", 1)[-1]
         if extension not in mime_type:
             raise ValueError(f"Logo extension '{extension}' is not recognized.")
-        return encode_logo(content, mime_type=extension)
+        return encode_logo(content, mime_type=mime_type[extension])
 
     raise ValueError(f"Logo type '{type(logo)}' is not recognized.")
 
