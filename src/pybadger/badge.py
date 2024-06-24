@@ -2,200 +2,127 @@
 
 
 # Standard libraries
-import copy
-from abc import ABC, abstractmethod
-from typing import Literal, Optional
+from typing import Literal, NamedTuple
 
 # Non-standard libraries
 from markitup import html
-from pylinks.url import URL
+import pylinks as _pylinks
 
 
-class ThemedBadge:
+class BadgeSettings(NamedTuple):
+    """Settings for a badge."""
 
-    def __init__(
-        self,
-        url_light: str | URL,
-        url_dark: str | URL,
-        link: str | URL = "",
-        title: str = "",
-        alt: str = "",
-        width: str = "",
-        height: str = "",
-        align: Literal["left", "right", "center", ""] = "",
-        tag_seperator: str = "",
-        content_indent: str = "",
-    ):
-        self._url_light = url_light
-        self._url_dark = url_dark
-        self.link = link
-        self.title = title
-        self.alt = alt
-        self.width = width
-        self.height = height
-        self.align = align
-        self.tag_seperator = tag_seperator
-        self.content_indent = content_indent
-        return
+    link: str | _pylinks.url.URL | None = None
+    title: str | None = None
+    alt: str | None = None
+    width: str | None = None
+    height: str | None = None
+    align: Literal["left", "right", "center"] | None = None
+    tag_seperator: str | None = ""
+    content_indent: str | None = ""
 
-    @property
-    def html(self):
-        attrs = {
-            name: value for name, value in (
-                ("title", self.title),
-                ("alt", self.alt),
-                ("width", self.width),
-                ("height", self.height),
-                ("align", self.align),
-            ) if value
-        }
-        img = html.img(src=self._url_light, **attrs)
-        picture = html.picture(
-            img=img,
-            sources=[
-                html.source(srcset=self._url_light, media="(prefers-color-scheme: light)"),
-                html.source(srcset=self._url_dark, media="(prefers-color-scheme: dark)"),
-            ],
-            tag_seperator=self.tag_seperator,
-            content_indent=self.content_indent,
-        )
-        return picture if not self.link else html.a(
-            href=self.link,
-            content=[picture],
-            tag_seperator=self.tag_seperator,
-            content_indent=self.content_indent
-        )
+    def __add__(self, other):
+        if other is None:
+            return self
+        if not isinstance(other, BadgeSettings):
+            raise TypeError("Only BadgeSettings objects can be added together.")
+        kwargs = {}
+        for param in self._fields:
+            arg_self = getattr(self, param)
+            kwargs[param] = arg_self if arg_self is not None else getattr(other, param)
+        return BadgeSettings(**kwargs)
 
-    def set(
-        self,
-        link: str | URL | None = None,
-        title: str | None = None,
-        alt: str | None = None,
-        width: str | None = None,
-        height: str | None = None,
-        align: Literal["left", "right", "center", ""] | None = None,
-        tag_seperator: str | None = None,
-        content_indent: str | None = None,
-    ):
-        for arg, attr in (
-            (link, "link"),
-            (title, "title"),
-            (alt, "alt"),
-            (width, "width"),
-            (height, "height"),
-            (align, "align"),
-            (tag_seperator, "tag_seperator"),
-            (content_indent, "content_indent"),
-        ):
-            if arg is not None:
-                setattr(self, attr, arg)
-        return
+    def __radd__(self, other):
+        if other is None:
+            return self
+        raise TypeError("Only BadgeSettings objects can be added together.")
 
-    def display(self):
-        # Non-standard libraries
-        from IPython.display import HTML, display
 
-        display(HTML(str(self.html)))
-        return
-
-    def __str__(self):
-        return str(self.html)
+badge_settings_default = BadgeSettings()
 
 
 class Badge:
 
     def __init__(
         self,
-        url: str | URL,
-        link: str | URL = "",
-        title: str = "",
-        alt: str = "",
-        width: str = "",
-        height: str = "",
-        align: Literal["left", "right", "center", ""] = "",
-        tag_seperator: str = "",
-        content_indent: str = "",
+        url: str | _pylinks.url.URL,
+        settings: BadgeSettings | None = None,
     ):
         self._url = url
-        self.link = link
-        self.title = title
-        self.alt = alt
-        self.width = width
-        self.height = height
-        self.align = align
-        self.tag_seperator = tag_seperator
-        self.content_indent = content_indent
+        self._settings = settings + badge_settings_default if settings else badge_settings_default
         return
 
-    @property
-    def html(self):
+    def html(self, as_anchor: bool = True):
         attrs = {
             name: value for name, value in (
-                ("title", self.title),
-                ("alt", self.alt),
-                ("width", self.width),
-                ("height", self.height),
-                ("align", self.align),
+                ("title", self._settings.title),
+                ("alt", self._settings.alt),
+                ("width", self._settings.width),
+                ("height", self._settings.height),
+                ("align", self._settings.align),
             ) if value
         }
         img = html.img(src=self._url, **attrs)
-        return img if not self.link else html.a(
-            href=self.link,
+        return img if not self._settings.link or not as_anchor else html.a(
+            href=self._settings.link,
             content=[img],
-            tag_seperator=self.tag_seperator,
-            content_indent=self.content_indent
+            tag_seperator=self._settings.tag_seperator,
+            content_indent=self._settings.content_indent
         )
 
-    def set(
-        self,
-        link: str | URL | None = None,
-        title: str | None = None,
-        alt: str | None = None,
-        width: str | None = None,
-        height: str | None = None,
-        align: Literal["left", "right", "center", ""] | None = None,
-        tag_seperator: str | None = None,
-        content_indent: str | None = None,
-    ) -> None:
-        for arg, attr in (
-            (link, "link"),
-            (title, "title"),
-            (alt, "alt"),
-            (width, "width"),
-            (height, "height"),
-            (align, "align"),
-            (tag_seperator, "tag_seperator"),
-            (content_indent, "content_indent"),
-        ):
-            if arg is not None:
-                setattr(self, attr, arg)
+    def set(self, settings: BadgeSettings) -> None:
+        self._settings = settings + self._settings
         return
 
     def display(self):
-        # Non-standard libraries
         from IPython.display import HTML, display
-
-        display(HTML(str(self.html)))
+        display(HTML(str(self.html())))
         return
 
     def __str__(self):
-        return str(self.html)
+        return str(self.html())
 
     def __add__(self, other):
+        if other is None:
+            return self
         if not isinstance(other, Badge):
             raise TypeError("Only badges can be added to badges.")
         return ThemedBadge(
-            url_light=self._url,
+            url=self._url,
             url_dark=other._url,
-            link=self.link or other.link,
-            title=self.title or other.title,
-            alt=self.alt or other.alt,
-            width=self.width or other.width,
-            height=self.height or other.height,
-            align=self.align or other.align,
-            tag_seperator=self.tag_seperator or other.tag_seperator,
-            content_indent=self.content_indent or other.content_indent,
+            settings=self._settings + other._settings,
         )
+
+
+class ThemedBadge(Badge):
+
+    def __init__(
+        self,
+        url: str | _pylinks.url.URL,
+        url_dark: str | _pylinks.url.URL,
+        settings: BadgeSettings | None = None,
+    ):
+        super().__init__(url=url, settings=settings)
+        self._url_dark = url_dark
+        return
+
+    def html(self, as_anchor: bool = True):
+        picture = html.picture(
+            img=super().html(as_anchor=False),
+            sources=[
+                html.source(srcset=self._url, media="(prefers-color-scheme: light)"),
+                html.source(srcset=self._url_dark, media="(prefers-color-scheme: dark)"),
+            ],
+            tag_seperator=self._settings.tag_seperator,
+            content_indent=self._settings.content_indent,
+        )
+        return picture if not self._settings.link or not as_anchor else html.a(
+            href=self._settings.link,
+            content=[picture],
+            tag_seperator=self._settings.tag_seperator,
+            content_indent=self._settings.content_indent
+        )
+
 
 
 # class Badge(ABC):
@@ -373,10 +300,3 @@ class Badge:
 #             return
 #         raise ValueError()
 #
-#     def display(self):
-#         # Non-standard libraries
-#         from IPython.display import HTML, display
-#
-#         display(HTML(str(self)))
-#         return
-

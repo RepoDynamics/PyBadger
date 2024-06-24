@@ -1,14 +1,22 @@
+from typing import Literal
 
-class GitHub:
-    """GitHub Badges."""
+import pylinks as _pylinks
+
+from pybadger import BadgeSettings as _BadgeSettings, Badge as _Badge
+from pybadger import shields as _shields
+from pybadger.shields.badge import ShieldsBadger as _ShieldsBadger
+
+
+class GitHubRepositoryBadger(_ShieldsBadger):
+    """Shields.io GitHub badges."""
 
     def __init__(
         self,
         user: str,
         repo: str,
-        branch: Optional[str] = None,
-        default_logo: bool = True,
-        **kwargs,
+        branch: str | None = None,
+        default_shields_settings: _shields.ShieldsSettings | None = None,
+        default_badge_settings: _BadgeSettings | None = None,
     ):
         """
         Parameters
@@ -18,219 +26,728 @@ class GitHub:
         repo : str
             GitHub repository name.
         branch : str, optional
-            GitHub branch name.
-        default_logo : bool, default: True
-            Whether to add a white GitHub logo to all badges by default.
-            This will have no effect if 'logo' is provided as a keyword argument.
-        **kwargs
-            Any other argument accepted by `ShieldsBadge`. These will be used as default values
-            for all badges, unless the same argument is also provided to the method when creating a specific badge,
-            in which case, the default value will be overridden.
+            Repository branch name to use as default for branch-specific endpoints.
+        default_shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default global settings.
+            These will be used as default values for all badges,
+            unless the same argument is also provided to the method when creating a specific badge.
+        default_badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default global settings.
+            These will be used as default values for all badges,
+            unless the same argument is also provided to the method when creating a specific badge.
         """
+        super().__init__(
+            endpoint_start="github",
+            endpoint_key=f"{user}/{repo}",
+            default_shields_settings=default_shields_settings,
+            default_badge_settings=default_badge_settings
+        )
         self.user = user
         self.repo = repo
         self.branch = branch
-        self._url = _BASE_URL / "github"
-        self._address = f"{user}/{repo}"
-        self._repo_link = pylinks.github.user(user).repo(repo)
-        if default_logo and "logo" not in kwargs:
-            kwargs["logo"] = {"simple_icons": "github", "color": "white"}
-        self.args = kwargs
+        self._repo_link = _pylinks.site.github.user(user).repo(repo)
         return
 
-    def workflow_status(
-        self,
-        filename: str,
-        description: Optional[str] = None,
-        **kwargs,
-    ) -> ShieldsBadge:
-        """Status (failing/passing) of a GitHub workflow.
-
-        Parameters
-        ----------
-        filename : str
-            Full filename of the workflow, e.g. 'ci.yaml'.
-        description : str, optional
-            A description for the workflow.
-            This will be used for the 'title' attribute of the badge's 'img' element, unless 'title'
-            is provided as a keyword argument.
-        """
-        path = self._url / "actions/workflow/status" / self._address / filename
-        link = self._repo_link.workflow(filename)
+    def _branch(self, branch: str | None = None) -> str | None:
+        """Get the branch to use for the badge."""
+        if branch == "":
+            return
+        if branch:
+            return branch
         if self.branch:
-            path.queries["branch"] = self.branch
-            link = self._repo_link.branch(self.branch).workflow(filename)
-        args = self.args | kwargs
-        if "title" not in args:
-            args["title"] = (
-                f"Status of the GitHub Actions workflow '{filename}'"
-                f"""{f"on branch '{self.branch}'" if self.branch else ''}. """
-                f"""{f"{description.strip().rstrip('.')}. " if description else ""}"""
-                "Click to see more details in the Actions section of the repository."
-            )
-        if "alt" not in args and "text" not in args:
-            args["alt"] = "GitHub Workflow Status"
-        if "link" not in args:
-            args["link"] = link
-        return ShieldsBadge(path=path, **args)
+            return self.branch
+        return
 
-    def pr_issue(
+    def commit_activity(
         self,
-        pr: bool = True,
-        status: Literal["open", "closed", "both"] = "both",
-        label: Optional[str] = None,
-        raw: bool = False,
-        **kwargs,
-    ) -> ShieldsBadge:
-        """Number of pull requests or issues on GitHub.
+        interval: Literal["t", "y", "m", "w"] = "t",
+        author_filter: str | None = None,
+        branch: str | None = None,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Number of commits in a branch.
 
         Parameters
         ----------
-        pr : bool, default: True
-            Whether to query pull requests (True, default) or issues (False).
-        closed : bool, default: False
-            Whether to query closed (True) or open (False, default) issues/pull requests.
-        label : str, optional
-            A specific GitHub label to query.
-        raw : bool, default: False
-            Display 'open'/'close' after the number (False) or only display the number (True).
+        interval : {'t', 'y', 'm', 'w'}, default: 't'
+            Interval of time to calculate the number of commits.
+            - 't': total
+            - 'y': last year
+            - 'm': last month
+            - 'w': last week
+        author_filter : str, optional
+            A GitHub username to only count commits by that user.
+        branch: str, optional
+            A specific branch to count commits in.
+            If not provided, the default (i.e., main) branch of the repository is used.
+            If the branch is not provided here but a default value is set
+            in the `branch` attribute of this instance, that branch will be used.
+            To use the default repository branch regardless of whether a default value is set or not,
+            set this argument to an empty string.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub commit activity](https://shields.io/badges/git-hub-commit-activity)
+        - [Shields.io API - GitHub commit activity (branch)](https://shields.io/badges/git-hub-commit-activity-branch)
         """
-
-        def get_path_link(closed):
-            path = self._url / (
-                f"issues{'-pr' if pr else ''}{'-closed' if closed else ''}"
-                f"{'-raw' if raw else ''}/{self._address}{f'/{label}' if label else ''}"
-            )
-            link = self._repo_link.pr_issues(pr=pr, closed=closed, label=label)
-            return path, link
-
-        def half_badge(closed: bool):
-            path, link = get_path_link(closed=closed)
-            if "link" not in args:
-                args["link"] = link
-            badge = ShieldsBadge(path=path, **args)
-            badge.html_syntax = ""
-            if closed:
-                badge.color = {"right": "00802b"}
-                badge.text = ""
-                badge.logo = None
-            else:
-                badge.color = {"right": "AF1F10"}
-            return badge
-
-        desc = {
-            None: {True: "pull requests in total", False: "issues in total"},
-            "bug": {True: "pull requests related to a bug-fix", False: "bug-related issues"},
-            "enhancement": {
-                True: "pull requests related to new features and enhancements",
-                False: "feature and enhancement requests",
-            },
-            "documentation": {
-                True: "pull requests related to the documentation",
-                False: "issues related to the documentation",
-            },
-        }
-        text = {
-            None: {True: "Total", False: "Total"},
-            "bug": {True: "Bug Fix", False: "Bug Report"},
-            "enhancement": {True: "Enhancement", False: "Feature Request"},
-            "documentation": {True: "Docs", False: "Docs"},
-        }
-
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = text[label][pr]
-        if "title" not in args:
-            args["title"] = (
-                f"Number of {status if status != 'both' else 'open (red) and closed (green)'} "
-                f"{desc[label][pr]}. "
-                f"Click {'on the red and green tags' if status=='both' else ''} to see the details of "
-                f"the respective {'pull requests' if pr else 'issues'} in the "
-                f"'{'Pull requests' if pr else 'Issues'}' section of the repository."
-            )
-        if "style" not in args and status == "both":
-            args["style"] = "flat-square"
-        if status not in ("open", "closed", "both"):
-            raise ValueError()
-        if status != "both":
-            path, link = get_path_link(closed=status == "closed")
-            if "link" not in args:
-                args["link"] = link
-            return ShieldsBadge(path=path, **args)
-        return html.element.ElementCollection(
-            [half_badge(closed) for closed in (False, True)], seperator=""
+        before = ["commit-activity", interval]
+        branch = self._branch(branch)
+        after = [branch] if branch else []
+        interval_text = {"y": "year", "m": "month", "w": "week"}
+        title = (
+            f"{'Total number' if interval == 't' else 'Number'} of commits "
+            f"""{f"in branch '{branch}' " if branch else ''}"""
+            f"{f'in the last {interval_text[interval]}' if interval != 't' else ''}. "
+            "Click to see the full list of commits."
+        )
+        alt = "Commit activity"
+        link = self._repo_link.branch(branch).commits if branch else self._repo_link.commits
+        return _shields.create(
+            path=self._create_path(before, after),
+            queries={"authorFilter": author_filter},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Commits"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title=title, alt=alt, link=link),
         )
 
-    def top_language(self, **kwargs) -> ShieldsBadge:
-        """The top language in the repository, and its frequency."""
-        args = self.args | kwargs
-        if "alt" not in args:
-            args["alt"] = "Top Programming Language"
-        if "title" not in args:
-            args["title"] = "Percentage of the most used programming language in the repository."
-        return ShieldsBadge(path=self._url / "languages/top" / self._address, **args)
-
-    def language_count(self, **kwargs) -> ShieldsBadge:
-        """Number of programming languages used in the repository."""
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Programming Languages"
-        if "title" not in args:
-            args["title"] = "Number of programming languages used in the repository."
-        return ShieldsBadge(path=self._url / "languages/count/" / self._address, **args)
-
-    def downloads(
+    def commits_difference(
         self,
-        tag: Optional[str | Literal["latest"]] = None,
-        asset: Optional[str] = None,
-        include_pre_release: bool = True,
-        sort_by_semver: bool = False,
-        **kwargs,
-    ) -> ShieldsBadge:
+        base: str,
+        head: str,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """Number of commits between two references, i.e., branches, tags, or hashes.
+
+        Parameters
+        ----------
+        base : str
+            The base reference.
+        head : str
+            The head reference.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub commits difference between two branches/tags/commits](https://shields.io/badges/git-hub-commits-difference-between-two-branches-tags-commits)
+        """
+        title = f"Number of commits between '{base}' and '{head}'. Click to see the full list of commits."
+        alt = "Commits difference"
+        link = self._repo_link.compare(base, head)
+        return _shields.create(
+            path=self._create_path(["commits-difference"], []),
+            queries={"base": base, "head": head},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Commits Difference"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title=title, alt=alt, link=link),
+        )
+
+    def commits_since_latest_release(
+        self,
+        include_prereleases: bool = True,
+        sort: Literal["date", "semver"] = "semver",
+        filter: str | None = None,
+        branch: str | None = None,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """Number of commits since the latest release.
+
+        Parameters
+        ----------
+        include_prereleases : bool, default: True
+            Whether to include prereleases.
+        sort : {'date', 'semver'}, default: 'semver'
+            Sort the releases by date or by Semantic Versioning.
+        filter : str, optional
+            Filter the tags/release names before selecting the latest from the list.
+            Two constructs are available:
+            - `*` is a wildcard matching zero or more characters.
+            - `!` negates the whole pattern.
+        branch: str, optional
+            A specific branch to look for releases.
+            If not provided, the default (i.e., main) branch of the repository is used.
+            If the branch is not provided here but a default value is set
+            in the `branch` attribute of this instance, that branch will be used.
+            To use the default repository branch regardless of whether a default value is set or not,
+            set this argument to an empty string.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub commits since latest release](https://shields.io/badges/git-hub-commits-since-latest-release)
+        - [Shields.io API - GitHub commits since latest release (branch)](https://shields.io/badges/git-hub-commits-since-latest-release-branch)
+        """
+        after = ["latest"]
+        branch = self._branch(branch)
+        if branch:
+            after.append(branch)
+        title = (
+            f"Number of commits since the latest release{' on branch ' + branch if branch else ''}. "
+            "Click to see the full list of commits."
+        )
+        alt = "Commits since latest release"
+        link = self._repo_link.branch(branch).commits if branch else self._repo_link.commits
+        return _shields.create(
+            path=self._create_path(["commits-since"], after),
+            queries={"include_prereleases": include_prereleases, "sort": sort, "filter": filter},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Commits Since Latest Release"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title=title, alt=alt, link=link),
+        )
+
+    def commits_since_tag(
+        self,
+        tag: str,
+        branch: str | None = None,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """Number of commits since a specific tag.
+
+        Parameters
+        ----------
+        tag : str
+            The tag.
+        branch: str, optional
+            A specific branch to look for the tagged version.
+            If not provided, the default (i.e., main) branch of the repository is used.
+            If the branch is not provided here but a default value is set
+            in the `branch` attribute of this instance, that branch will be used.
+            To use the default repository branch regardless of whether a default value is set or not,
+            set this argument to an empty string.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub commits since tagged version](https://shields.io/badges/git-hub-commits-since-tagged-version)
+        - [Shields.io API - GitHub commits since tagged version (branch)](https://shields.io/badges/git-hub-commits-since-tagged-version-branch)
+        """
+        after = [tag]
+        branch = self._branch(branch)
+        if branch:
+            after.append(branch)
+        title = (
+            f"Number of commits since tag '{tag}'{' on branch ' + branch if branch else ''}. "
+            "Click to see the full list of commits."
+        )
+        alt = "Commits since version"
+        link = self._repo_link.branch(branch).commits if branch else self._repo_link.commits
+        return _shields.create(
+            path=self._create_path(["commits-since"], after),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label=f"Commits Since {tag}"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title=title, alt=alt, link=link),
+        )
+
+    def created_at(
+        self,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """Date of repository creation.
+
+        Parameters
+        ----------
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub created at](https://shields.io/badges/git-hub-created-at)
+        """
+        return _shields.create(
+            path=self._create_path(["created-at"], []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Created"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title="Repository creation date", alt="Repository creation date"),
+        )
+
+    def last_commit(
+        self,
+        path: str | None = None,
+        display_timestamp: Literal["author", "committer"] = "author",
+        branch: str | None = None,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """Time of the last commit (of a file) in a branch.
+
+        Parameters
+        ----------
+        path : str, optional
+            A specific path in the repository to check for the last commit.
+            If not provided, the last commit of the branch is selected.
+        display_timestamp : {'author', 'committer'}, default: 'author'
+            Whether to display the author's timestamp or the committer's timestamp.
+        branch: str, optional
+            A specific branch to look for the last commit.
+            If not provided, the default (i.e., main) branch of the repository is used.
+            If the branch is not provided here but a default value is set
+            in the `branch` attribute of this instance, that branch will be used.
+            To use the default repository branch regardless of whether a default value is set or not,
+            set this argument to an empty string.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub last commit](https://shields.io/badges/git-hub-last-commit)
+        - [Shields.io API - GitHub last commit (branch)](https://shields.io/badges/git-hub-last-commit-branch)
+        """
+        branch = self._branch(branch)
+        after = [branch] if branch else []
+        title = (
+            f"Time of the last commit{' on branch ' + branch if branch else ''}. "
+            "Click to see the full list of commits."
+        )
+        alt = "Last commit"
+        link = self._repo_link.branch(branch).commits if branch else self._repo_link.commits
+        return _shields.create(
+            path=self._create_path(["last-commit"], after),
+            queries={"path": path, "display_timestamp": display_timestamp},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Last Commit"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title=title, alt=alt, link=link),
+        )
+
+    def release_date(
+        self,
+        include_prereleases: bool = True,
+        display_date: Literal["created_at", "published_at"] = "created_at",
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """Date of the latest release.
+
+        Parameters
+        ----------
+        include_prereleases : bool, default: True
+            Whether to include prereleases.
+        display_date : {'created_at', 'published_at'}, default: 'created_at'
+            Whether to display the creation date of the release or the publication date.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub release date](https://shields.io/badges/git-hub-release-date)
+        """
+        return _shields.create(
+            path=self._create_path(["release-date-pre" if include_prereleases else "release-date"], []),
+            queries={"display_date": display_date},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Latest Release"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title="Latest release date. Click to see more details in the Releases section of the repository.", alt="Latest release date", link=self._repo_link.releases(tag="latest")),
+        )
+
+    def language_count(
+        self,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """Number of programming languages used in the repository.
+
+        Parameters
+        ----------
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub language count](https://shields.io/badges/git-hub-language-count)
+        """
+        return _shields.create(
+            path=self._create_path(["languages", "count"], []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Languages"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title="Number of programming languages used in the project.", alt="Programming Languages"),
+        )
+
+    def search_hits(
+        self,
+        query: str,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """Number of search hits in the repository.
+
+        Parameters
+        ----------
+        query : str
+            The search query.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub search hit counter](https://shields.io/badges/git-hub-search-hit-counter)
+        """
+        return _shields.create(
+            path=self._create_path(["search"], [query]),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label=query),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title=f"Number of search hits for query '{query}' in the repository.", alt=f"Search Hits ({query})"),
+        )
+
+    def top_language(
+        self,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """The top language in the repository, and its share in percent.
+
+        Parameters
+        ----------
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub top language](https://shields.io/badges/git-hub-top-language)
+        """
+        return _shields.create(
+            path=self._create_path(["languages", "top"], []),
+            shields_settings=self._shields_settings(shields_settings),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title="Percentage of the most used programming language in the repository.", alt="Top Programming Language"),
+        )
+
+    def actions_workflow_status(
+        self,
+        workflow: str,
+        branch: str | None = None,
+        event: str | None = None,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """Status of a GitHub Actions workflow.
+
+        Parameters
+        ----------
+        workflow : str
+            The name of the workflow file, e.g., 'ci.yaml'.
+        branch : str, optional
+            The branch to check the workflow status for.
+            If not provided, the default (i.e., main) branch of the repository is used.
+            If the branch is not provided here but a default value is set
+            in the `branch` attribute of this instance, that branch will be used.
+            To use the default repository branch regardless of whether a default value is set or not,
+            set this argument to an empty string.
+        event : str, optional
+            The event that triggered the workflow.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub workflow status](https://shields.io/badges/git-hub-workflow-status)
+        """
+        branch = self._branch(branch)
+        title = (
+            f"Status of the GitHub Actions workflow '{workflow}'"
+            f"{f' on branch {branch}' if branch else ''}"
+            f"{f' for event {event}' if event else ''}."
+            "Click to see more details in the Actions section of the repository."
+        )
+        alt = "Workflow Status"
+        link = self._repo_link.branch(branch).workflow(workflow) if branch else self._repo_link.workflow(workflow)
+        return _shields.create(
+            path=self._create_path(["actions", "workflow", "status"], [workflow]),
+            queries={"branch": branch, "event": event},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Workflow"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title=title, alt=alt, link=link),
+        )
+
+    def branch_check_runs(
+        self,
+        branch: str,
+        name_filter: str | None = None,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None
+    ) -> _Badge:
+        """Status of GitHub Actions check-runs for a branch.
+
+        Parameters
+        ----------
+        branch : str
+            Branch name.
+        name_filter : str, optional
+            Name of a specific check-run.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub branch check runs](https://shields.io/badges/git-hub-branch-check-runs)
+        """
+        title = (
+            f"Status of GitHub Actions check-runs on branch '{branch}'"
+            f"{f' for check-run {name_filter}' if name_filter else ''}."
+        )
+        alt = "Check-Runs Status"
+        return _shields.create(
+            path=self._create_path(["check-runs"], [branch]),
+            queries={"nameFilter": name_filter},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Check Runs"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(title=title, alt=alt),
+        )
+
+    def dependency_status(
+        self,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Dependency status for the package, according to Libraries.io.
+
+        Parameters
+        ----------
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - Libraries.io dependency status for GitHub repo](https://shields.io/badges/libraries-io-dependency-status-for-git-hub-repo)
+        """
+        return _shields.create(
+            path=f"librariesio/github/{self.user}/{self.repo}",
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Dependencies",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title="Status of the project's dependencies.",
+                alt="Dependency Status",
+            ),
+        )
+
+    def downloads_all_releases(
+        self,
+        asset: str | None = None,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Number of downloads of all releases.
+
+        Parameters
+        ----------
+        asset : str, optional
+            Name of a specific asset to query.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub Downloads (all assets, all releases)](https://shields.io/badges/git-hub-downloads-all-assets-all-releases)
+        - [Shields.io API - GitHub Downloads (specific asset, all releases)](https://shields.io/badges/git-hub-downloads-specific-asset-all-releases)
+        """
+        return _shields.create(
+            path=self._create_path(["downloads"], [asset if asset else "total"]),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Downloads", logo="github"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title="Number of downloads of all releases from GitHub.",
+                alt="GitHub Downloads",
+                link=self._repo_link.releases(),
+            ),
+        )
+
+    def downloads_release(
+        self,
+        asset: str | None = None,
+        tag: str | Literal["latest"] = "latest",
+        include_prereleases: bool = True,
+        sort: Literal["date", "semver"] = "date",
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
         """
         Number of downloads of a GitHub release.
 
         Parameters
         ----------
-        tag : str, default: None
-            A specific release tag to query. If set to None (default), number of total downloads is displayed.
-            Additionally, the keyword 'latest' can be provided to query the latest release.
         asset : str, optional
-            An optional asset to query.
-        include_pre_release : bool, default: True
-            Whether to include pre-releases in the count.
-        sort_by_semver : bool, default: False
-            If tag is set to 'latest', whether to choose the latest release according
-            to the Semantic Versioning (True), or according to date (False).
-        """
-        path = self._url / f"downloads{'-pre' if include_pre_release else ''}/{self._address}"
-        if not tag:
-            path /= "total"
-        else:
-            path /= f'{tag}/{asset if asset else "total"}'
-            if sort_by_semver:
-                path.queries["sort"] = "semver"
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Downloads"
-        if "title" not in args:
-            if tag:
-                target = (
-                    f" for the {'latest release' if tag == 'latest' else f'release version {tag}'}"
-                )
-                if asset:
-                    target += f" and asset '{asset}'"
-            elif asset:
-                target = f" for the asset {asset}"
-            args["title"] = (
-                f"Number of {'total ' if not (asset or tag) else ''}GitHub downloads{target}. "
-                "Click to see more details in the 'Releases' section of the repository."
-            )
-        if "link" not in args:
-            args["link"] = self._repo_link.releases(tag=tag if tag else "latest")
-        return ShieldsBadge(path=path, **args)
+            Name of a specific asset to query.
+        tag : str, default: "latest"
+            Release tag to query. Setting to 'latest' will query the latest release.
+        include_prereleases : bool, default: True
+            Whether to include pre-releases.
+        sort : {'date', 'semver'}, default: 'date'
+            Sort the releases by date or by Semantic Versioning.
+            Only applicable if `tag` is set to 'latest'.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
 
-    def license(self, filename: str = "LICENSE", branch: str = "main", **kwargs) -> ShieldsBadge:
+        References
+        ----------
+        - [Shields.io API - GitHub Downloads (all assets, latest release)](https://shields.io/badges/git-hub-downloads-all-assets-latest-release)
+        - [Shields.io API - GitHub Downloads (all assets, specific tag)](https://shields.io/badges/git-hub-downloads-all-assets-specific-tag)
+        - [Shields.io API - GitHub Downloads (specific asset, latest release)](https://shields.io/badges/git-hub-downloads-specific-asset-latest-release)
+        - [Shields.io API - GitHub Downloads (specific asset, specific tag)](https://shields.io/badges/git-hub-downloads-specific-asset-specific-tag)
+        """
+        return _shields.create(
+            path=self._create_path(
+                ["downloads-pre" if tag == "latest" and include_prereleases else "downloads"],
+                [tag, asset if asset else "total"]
+            ),
+            queries={"sort": sort} if tag == "latest" else None,
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Downloads", logo="github"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Number of downloads from GitHub for the {'latest release' if tag == 'latest' else f'release tag {tag}'}. Click to see more details in the 'Releases' section of the repository.",
+                alt="GitHub Downloads",
+                link=self._repo_link.releases(tag=tag),
+            ),
+        )
+
+    def issue_search_hits(
+        self,
+        query: str,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Number of search hits for a query in issues/pull requests.
+
+        Parameters
+        ----------
+        query : str
+            The search query.
+            For example, `type:issue is:closed label:bug`.
+            For a full list of available filters and allowed values,
+            see GitHub's documentation on [Searching issues and pull requests](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests).
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub issue custom search in repo](https://shields.io/badges/git-hub-issue-custom-search-in-repo)
+        """
+        return _shields.create(
+            path=self._create_path(["issues-search"], []),
+            queries={"query": query},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label=query),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Number of search hits for query '{query}' in repository issues/pulls.",
+                alt=f"Search Hits ({query})",
+            ),
+        )
+
+    def issue_details(
+        self,
+        kind: Literal["issues", "pulls"],
+        number: int,
+        property: Literal["state", "title", "author", "label", "comments", "age", "last-update", "milestone"],
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Details of an issue or pull request.
+
+        Parameters
+        ----------
+        kind : {'issues', 'pulls'}
+            Whether to query issues or pull requests.
+        number : int
+            The issue or pull request number.
+        property : {'state', 'title', 'author', 'label', 'comments', 'age', 'last-update', 'milestone'}
+            The property to display.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub issue/pull reqyest detail](https://shields.io/badges/git-hub-issue-pull-request-detail)
+        """
+        return _shields.create(
+            path=self._create_path([kind, "detail", property], [str(number)]),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label=f"{property.capitalize()} (#{number})"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"{property.capitalize()} of the issue/pull number {number}.",
+                alt=f"Issue Details",
+            ),
+        )
+
+    def issue_count(
+        self,
+        kind: Literal["issues", "pulls"],
+        state: Literal["open", "closed"] = "open",
+        label: str | None = None,
+        show_state: bool = True,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ):
+        """Number of open/closed issues or pull requests.
+
+        Parameters
+        ----------
+        kind : {'issues', 'pulls'}
+            Whether to query issues or pull requests.
+        state : {'open', 'closed'}, default: 'open'
+            Whether to query open or closed issues/pull requests.
+        label : str, optional
+            A specific GitHub label to filter issues/pulls.
+        show_state : bool, default: True
+            Whether to display the queried state on the right-hand side of the badge.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+        """
+        variant = {
+            ("issues", "open", True): "issues",
+            ("issues", "open", False): "issues-raw",
+            ("issues", "closed", True): "issues-closed",
+            ("issues", "closed", False): "issues-closed-raw",
+            ("pulls", "open", True): "issues-pr",
+            ("pulls", "open", False): "issues-pr-raw",
+            ("pulls", "closed", True): "issues-pr-closed",
+            ("pulls", "closed", False): "issues-pr-closed-raw",
+        }
+        return _shields.create(
+            path=self._create_path([variant[(kind, state, show_state)]], [label] if label else []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label=f"{kind.capitalize() if show_state else f'{state.capitalize()} {kind.capitalize()}'}{f' ({label})' if label else ''}",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Number of {state} {kind}{f' with label {label}' if label else ''}.",
+                alt=f"{state.capitalize()} {kind.capitalize()} Count",
+            ),
+        )
+
+    def license(
+        self,
+        filename: str = "LICENSE",
+        branch: str = "main",
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
         """License of the GitHub repository.
 
         Parameters
@@ -238,249 +755,437 @@ class GitHub:
         filename : str, default: 'LICENSE'
             Name of the license file in the GitHub branch.
             This is used to create a link to the license.
+        branch : str, default: 'main'
+            The branch to look for the license file.
+            This is used to create a link to the license.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub license](https://shields.io/badges/git-hub-license)
         """
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "License"
-        if "title" not in args:
-            args["title"] = "License of the project. Click to read the complete license."
-        if "link" not in args:
-            args["link"] = self._repo_link.branch(self.branch or branch).file(filename)
-        return ShieldsBadge(path=self._url / "license" / self._address, **args)
+        return _shields.create(
+            path=self._create_path(["license"], []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="License"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Project license. Click to read the complete license.",
+                alt="License",
+                link=self._repo_link.branch(branch).file(filename)
+            ),
+        )
 
-    def commit_activity(self, interval: Literal["y", "m", "w"] = "m", **kwargs) -> ShieldsBadge:
-        interval_text = {"y": "year", "m": "month", "w": "week"}
-        path = self._url / "commit-activity" / interval / self._address
-        link = self._repo_link.commits
-        if self.branch:
-            path /= self.branch
-            link = self._repo_link.branch(self.branch).commits
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Commits"
-        if "title" not in args:
-            args["title"] = (
-                f"""Average number of commits {f"in branch '{self.branch}' " if self.branch else ''}"""
-                f"per {interval_text[interval]}. Click to see the full list of commits."
-            )
-        if "link" not in args:
-            args["link"] = link
-        return ShieldsBadge(path=path, **args)
-
-    def commits_since(
+    def deployment_status(
         self,
-        version: str | Literal["latest"] = "latest",
-        include_pre_release: bool = True,
-        sort_by_semver: bool = False,
-        **kwargs,
-    ):
-        path = self._url / "commits-since" / self._address / version
-        link = self._repo_link.commits
-        if self.branch:
-            path /= self.branch
-            link = self._repo_link.branch(self.branch).commits
-        if include_pre_release:
-            path.queries["include_prereleases"] = None
-        if sort_by_semver:
-            path.queries["sort"] = "semver"
-        args = self.args | kwargs
-        if "text" not in args and "alt" not in args:
-            args[
-                "alt"
-            ] = f"Commits since {'latest release' if version=='latest' else f'release version {version}'}"
-        if "title" not in args:
-            args["title"] = (
-                f"Number of commits since {'latest release' if version == 'latest' else f'release version {version}'}."
-                "Click to see the full list of commits."
-            )
-        if "link" not in args:
-            args["link"] = link
-        return ShieldsBadge(path=path, **args)
-
-    def last_commit(self, **kwargs):
-        path = self._url / "last-commit" / self._address
-        link = self._repo_link.commits
-        if self.branch:
-            path /= self.branch
-            link = self._repo_link.branch(self.branch).commits
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Last Commit"
-        if "title" not in args:
-            args["title"] = (
-                f"""Time of last commit{f" on branch '{self.branch}'" if self.branch else ''}."""
-                "Click to see the full list of commits."
-            )
-        if "link" not in args:
-            args["link"] = link
-        return ShieldsBadge(path=path, **args)
-
-    def release_date(
-        self, pre_release: bool = True, publish_date: bool = False, **kwargs
-    ) -> ShieldsBadge:
-        """
-        Release date (optionally publish date) of the latest released version on GitHub.
+        environment: str,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Deployment status of a GitHub environment.
 
         Parameters
         ----------
-        pre_release : bool, default: True
-            Whether to include pre-releases.
-        publish_date : bool, default: False
-            Get publish date instead of release date.
-        kwargs
-            Any other argument accepted by `ShieldsBadge`.
+        environment : str
+            The name of the deployment environment.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub deployments](https://shields.io/badges/git-hub-deployments)
         """
-        path = self._url / ("release-date-pre" if pre_release else "release-date") / self._address
-        if publish_date:
-            path.queries["display_date"] = "published_at"
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Released"
-        if "alt" not in args:
-            args["alt"] = "Release Date"
-        if "title" not in args:
-            args["title"] = (
-                "Release date of the latest version. "
-                "Click to see more details in the 'Releases' section of the repository."
-            )
-        if "link" not in args:
-            args["link"] = self._repo_link.releases(tag="latest")
-        return ShieldsBadge(path=path, **args)
-
-    def release_version(
-        self,
-        display_name: Optional[Literal["tag", "release"]] = None,
-        include_pre_release: bool = True,
-        sort_by_semver: bool = False,
-        **kwargs,
-    ):
-        path = self._url / "v/release" / self._address
-        if display_name:
-            path.queries["display_name"] = display_name
-        if include_pre_release:
-            path.queries["include_prereleases"] = None
-        if sort_by_semver:
-            path.queries["sort"] = "semver"
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Version"
-        if "title" not in args:
-            args["title"] = (
-                "Latest release version. "
-                "Click to see more details in the 'Releases' section of the repository."
-            )
-        if "link" not in args:
-            args["link"] = self._repo_link.releases(tag="latest")
-        return ShieldsBadge(path=path, **args)
-
-    def code_size(self, **kwargs):
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Code Size"
-        if "title" not in args:
-            args["title"] = "Total size of all source files in the repository."
-        return ShieldsBadge(path=self._url / "languages/code-size" / self._address, **args)
-
-    def dir_file_count(
-        self,
-        path: Optional[str] = None,
-        selection: Optional[Literal["file", "dir"]] = None,
-        file_extension: Optional[str] = None,
-        **kwargs,
-    ):
-        img_path = self._url / "directory-file-count" / self._address
-        if path:
-            img_path /= path
-        if selection:
-            img_path.queries["type"] = selection
-        if file_extension:
-            img_path.queries["extension"] = file_extension
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Files"
-        if "title" not in args:
-            things = (
-                "files and directories"
-                if not selection
-                else ("files" if selection == "file" else "directories")
-            )
-            args["title"] = (
-                f"Total number of {things} "
-                f"""{f"with the extension '{file_extension}' " if file_extension else ''}"""
-                f"""{f"located under '{path}'" if path else 'in the repository'}."""
-            )
-        return ShieldsBadge(img_path, **args)
-
-    def repo_size(self, **kwargs):
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Repo Size"
-        if "title" not in args:
-            args["title"] = "Total size of the repository."
-        return ShieldsBadge(self._url / "repo-size" / self._address, **args)
-
-    def milestones(self, state: Literal["open", "closed", "both", "all"] = "all", **kwargs):
-        def get_path_link(state):
-            path = self._url / "milestones" / state / self._address
-            link = self._repo_link.milestones(state=state if state == "closed" else "open")
-            return path, link
-
-        def half_badge(state):
-            path, link = get_path_link(state=state)
-            if "link" not in args:
-                args["link"] = link
-            badge = ShieldsBadge(path=path, **args)
-            badge.html_syntax = ""
-            if state == "closed":
-                badge.color = {"right": "00802b"}
-                badge.text = ""
-                badge.logo = None
-            else:
-                badge.color = {"right": "AF1F10"}
-            return badge
-
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = (
-                "Milestones"
-                if state in ("all", "both")
-                else ("Open Milestones" if state == "open" else "Finished Milestones")
-            )
-        if "title" not in args:
-            which = (
-                state
-                if state not in ("both", "all")
-                else ("open (red) and closed (green)" if state == "both" else "total")
-            )
-            args["title"] = (
-                f"Number of {which} milestones. "
-                f"Click {'on the red and green tags' if state == 'both' else ''} for more details."
-            )
-        if state != "both":
-            path, link = get_path_link(state=state)
-            if "link" not in args:
-                args["link"] = link
-            return ShieldsBadge(path=path, **args)
-        return html.element.ElementCollection(
-            [half_badge(state) for state in ("open", "closed")], seperator=""
+        return _shields.create(
+            path=self._create_path(["deployments"], [environment]),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label=f"Deployment ({environment})"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Deployment status for '{environment}' environment.",
+                alt="Deployment Status",
+            ),
         )
 
-    def discussions(self, **kwargs) -> ShieldsBadge:
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Discussions"
-        if "title" not in args:
-            args[
-                "title"
-            ] = "Total number of discussions. Click to open the 'Discussions' section of the repository."
-        if "link" not in args:
-            args["link"] = self._repo_link.discussions()
-        return ShieldsBadge(path=self._url / "discussions" / self._address, **args)
+    def discussion_count(
+        self,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Number of discussions in the GitHub repository.
 
-    def dependency_status(self, **kwargs) -> ShieldsBadge:
-        args = self.args | kwargs
-        if "text" not in args:
-            args["text"] = "Dependencies"
-        if "title" not in args:
-            args["title"] = "Status of the project's dependencies."
-        return ShieldsBadge(_BASE_URL / "librariesio/github" / self._address, **args)
+        Parameters
+        ----------
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub discussions](https://shields.io/badges/git-hub-discussions)
+        """
+        return _shields.create(
+            path=self._create_path(["discussions"], []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Discussions"),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Number of discussions. Click to open the Discussions section of the repository.",
+                alt="Discussion Count",
+                link=self._repo_link.discussions(),
+            ),
+        )
+
+    def discussion_search_hits(
+        self,
+        query: str,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Number of search hits for a query in discussions.
+
+        Parameters
+        ----------
+        query : str
+            The search query.
+            For example, `is:answered answered-by:someUsername`.
+            For a full list of available filters and allowed values,
+            see GitHub's documentation on [Searching discussions](https://docs.github.com/en/search-github/searching-on-github/searching-discussions).
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub discussions custom search in repo](https://shields.io/badges/git-hub-discussions-custom-search-in-repo)
+        """
+        return _shields.create(
+            path=self._create_path(["discussions-search"], []),
+            queries={"query": query},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label=query),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Number of search hits for query '{query}' in repository discussions.",
+                alt=f"Discussions Search Hits ({query})",
+            ),
+        )
+
+    def python_versions(
+        self,
+        pyproject_path: str,
+        branch: str = "main",
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Supported Python versions read from `pyproject.toml` file.
+
+        Parameters
+        ----------
+        pyproject_path : str, optional
+            Path to the `pyproject.toml` file to read the supported Python versions from,
+            e.g., `src/pyproject.toml`.
+        branch : str, default: 'main'
+            The branch to look for the `pyproject.toml` file.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - Python Version from PEP 621 TOML](https://shields.io/badges/python-version-from-pep-621-toml)
+        """
+        return _shields.create(
+            path="python/required-version-toml",
+            queries={"tomlFilePath": str(self._repo_link.branch(branch).file(pyproject_path, raw=True))},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Supports Python",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title="Supported Python versions",
+                alt="Supported Python Versions",
+            ),
+        )
+
+    def code_size(
+        self,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Code size in bytes.
+
+        Parameters
+        ----------
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub code size in bytes](https://shields.io/badges/git-hub-code-size-in-bytes)
+        """
+        return _shields.create(
+            path=self._create_path(["languages", "code-size"], []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Code Size",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title="Code size",
+                alt="Code Size",
+            ),
+        )
+
+    def dir_count(
+        self,
+        path: str | None = None,
+        typ: Literal["file", "dir"] | None = None,
+        extension: str | None = None,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Number of files/subdirectories directly in a directory (not recursive).
+
+        Parameters
+        ----------
+        path : str, optional
+            A path to count the files/directories in.
+            If not provided, the count is for the root directory.
+        typ : {'file', 'dir'}, optional
+            Whether to count files or directories.
+            If not provided, both files and directories are counted.
+            Note that due to GitHub API's limit, if a directory contains more than 1000 files,
+            the badge will show an inaccurate count.
+        extension : str, optional
+            Count only files with a specific extension.
+            Specify the extension without a leading dot.
+            Only applicable if `typ` is `file`.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub repo file or directory count](https://shields.io/badges/git-hub-repo-file-or-directory-count)
+        - [Shields.io API - GitHub repo file or directory count (in path)](https://shields.io/badges/git-hub-repo-file-or-directory-count-in-path)
+        """
+        things = (
+            "files and directories" if not typ else (
+                "directories" if typ == "dir" else f"{f'{extension.upper()} ' if extension else ''}files"
+            )
+        )
+        return _shields.create(
+            path=self._create_path(["directory-file-count"], [path] if path else []),
+            queries={"type": typ, "extension": extension},
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Files",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Number of {things} in the {path if path else 'root'} directory",
+                alt="File Count",
+            ),
+        )
+
+    def repo_size(
+        self,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Total size of the repository in bytes.
+
+        Parameters
+        ----------
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub repo size](https://shields.io/badges/git-hub-repo-size)
+        """
+        return _shields.create(
+            path=self._create_path(["repo-size"], []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Repo Size",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Total size of the repository.",
+                alt="Repository Size",
+            ),
+        )
+
+    def forks(
+        self,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Number of repository forks.
+
+        Parameters
+        ----------
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub forks](https://shields.io/badges/git-hub-forks)
+        """
+        return _shields.create(
+            path=self._create_path(["forks"], []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Forks",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Number of repository forks",
+                alt="Forks",
+            ),
+        )
+
+    def stars(
+        self,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Number of repository stars.
+
+        Parameters
+        ----------
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub Repo stars](https://shields.io/badges/git-hub-repo-stars)
+        """
+        return _shields.create(
+            path=self._create_path(["stars"], []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Stars",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Number of repository stars",
+                alt="Stars",
+            ),
+        )
+
+    def watchers(
+        self,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Number of repository watchers.
+
+        Parameters
+        ----------
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub watchers](https://shields.io/badges/git-hub-watchers)
+        """
+        return _shields.create(
+            path=self._create_path(["watchers"], []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Watchers",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Number of repository watchers",
+                alt="Watchers",
+            ),
+        )
+
+    def version(
+        self,
+        source: Literal["tag", "release"] = "release",
+        display_name: Literal["tag", "release"] | None = "release",
+        sort: Literal["date", "semver"] = "date",
+        filter: str | None = None,
+        include_prereleases: bool = True,
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Latest version of the software.
+
+        Parameters
+        ----------
+        source : {'tag', 'release'}, default: 'release'
+            Whether to get the latest version from tags or releases.
+        display_name : {'tag', 'release'}, default: 'release'
+            Whether to display the tag name or release name.
+            Only applicable if `source` is set to 'release'.
+        sort : {'date', 'semver'}, default: 'date'
+            Sort the releases by date or by Semantic Versioning.
+        filter : str, optional
+            Filter the tags/release names before selecting the latest from the list.
+            Two constructs are available:
+            - `*` is a wildcard matching zero or more characters.
+            - `!` negates the whole pattern.
+        include_prereleases : bool, default: True
+            Whether to include pre-releases.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub Release](https://shields.io/badges/git-hub-release)
+        - [Shields.io API - GitHub Tag](https://shields.io/badges/git-hub-tag)
+        """
+        queries = {"sort": sort, "filter": filter, "include_prereleases": include_prereleases}
+        if source == "release":
+            queries["display_name"] = display_name
+        return _shields.create(
+            path=self._create_path(["v", source], []),
+            queries=queries,
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label="Latest Version",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Latest version of the package. Click to see more details in the 'Releases' section of the repository.",
+                alt="Latest Version",
+                link=self._repo_link.releases(tag="latest"),
+            ),
+        )
+
+    def milestone_count(
+        self,
+        state: Literal["open", "closed", "all"] = "all",
+        shields_settings: _shields.ShieldsSettings | None = None,
+        badge_settings: _BadgeSettings | None = None,
+    ) -> _Badge:
+        """Number of milestones in the repository.
+
+        Parameters
+        ----------
+        state : {'open', 'closed', 'all'}, default: 'all'
+            Whether to count open, closed, or all milestones.
+        shields_settings : pybadger.shields.ShieldsSettings, optional
+            Settings for the Shields.io badge to override the default instance settings.
+        badge_settings : pybadger.BadgeSettings, optional
+            Settings for the badge to override the default instance settings.
+
+        References
+        ----------
+        - [Shields.io API - GitHub number of milestones](https://shields.io/badges/git-hub-number-of-milestones)
+        """
+        return _shields.create(
+            path=self._create_path(["milestones", state], []),
+            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
+                label=f"{state.upper()} Milestones",
+            ),
+            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
+                title=f"Number of {state} milestones. Click to see more details in the Milestones section of the repository.",
+                alt="Milestone Count",
+                link=self._repo_link.milestones(state=state if state == "closed" else "open"),
+            ),
+        )

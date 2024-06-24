@@ -17,9 +17,9 @@ namespaces = true
 # ----------------------------------------- Project Metadata -------------------------------------
 #
 [project]
-version = "0.0.0.dev4"
+version = "0.0.0.dev5"
 name = "PyBadger"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "pylinks",
     "markitup"
