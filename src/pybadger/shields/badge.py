@@ -65,10 +65,11 @@ def create(
         if val is not None:
             _url.queries[key] = val
     _url_dark = _url.copy()
+    logo_light = _process_logo(shields_settings.logo) if shields_settings.logo else None
     for key, val in (
         ("color", shields_settings.color),
         ("labelColor", shields_settings.label_color),
-        ("logo", _process_logo(shields_settings.logo) if shields_settings.logo else None),
+        ("logo", logo_light),
         ("logoColor", shields_settings.logo_color),
     ):
         if val is not None:
@@ -83,7 +84,7 @@ def create(
     for key, val in (
         ("color", shields_settings.color_dark),
         ("labelColor", shields_settings.label_color_dark),
-        ("logo", _process_logo(shields_settings.logo_dark) if shields_settings.logo_dark else None),
+        ("logo", _process_logo(shields_settings.logo_dark) if shields_settings.logo_dark else logo_light),
         ("logoColor", shields_settings.logo_color_dark),
     ):
         if val is not None:
