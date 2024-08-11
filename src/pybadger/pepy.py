@@ -12,7 +12,7 @@ from typing import Literal as _Literal, NamedTuple as _NamedTuple
 # Non-standard libraries
 import pylinks as _pylinks
 
-from pybadger import BadgeSettings as _BadgeSettings, Badge as _Badge, ThemedBadge as _ThemedBadge
+from pybadger import Badge as _Badge
 
 
 _BASE_URL = _pylinks.url.create("https://static.pepy.tech")
@@ -61,14 +61,10 @@ class PepySettings(_NamedTuple):
         raise TypeError("Only PepySettings objects can be added together.")
 
 
-pepy_settings_default = PepySettings()
-
-
 def pypi_downloads(
     package: str,
     period: _Literal["total", "month", "week"] = "total",
     pepy_settings: PepySettings | None = None,
-    badge_settings: _BadgeSettings | None = None,
 ) -> _Badge:
     """
     Number of downloads for a PyPI package.
@@ -81,21 +77,18 @@ def pypi_downloads(
         Time period to query.
     pepy_settings : pybadger.pepy.PepySettings, optional
         Settings for the PePy badge.
-    badge_settings : pybadger.BadgeSettings, optional
-        Settings for the badge.
 
     References
     ----------
     - [PePy Source Code](https://github.com/psincraian/pepy/blob/master/pepy/application/badge_service.py)
     """
     _url = _BASE_URL / "personalized-badge" / package
-    pepy_settings = pepy_settings + pepy_settings_default + PepySettings(
+    pepy_settings = pepy_settings + PepySettings(
         left_text="Total Downloads" if period == "total" else f"Downloads/{period.capitalize()}"
     )
-    badge_settings = badge_settings + _BadgeSettings(
-        title="",
-        link=f"https://pepy.tech/project/{package}",
-    )
+    anchor_attributes = {
+        "href": f"https://pepy.tech/project/{package}"
+    }
     common_queries = {
         "left_text": pepy_settings.left_text, "units": pepy_settings.units, "period": period
     }
@@ -110,11 +103,11 @@ def pypi_downloads(
         if val is not None:
             _url.queries[key] = val
     if not (pepy_settings.left_color_dark or pepy_settings.right_color_dark):
-        return _Badge(url=_url, settings=badge_settings)
+        return _Badge(src_light=_url, anchor_attributes=anchor_attributes)
     for key, val in (
         ("left_color", pepy_settings.left_color_dark),
         ("right_color", pepy_settings.right_color_dark),
     ):
         if val is not None:
             _url_dark.queries[key] = val
-    return _ThemedBadge(url=_url, url_dark=_url_dark, settings=badge_settings)
+    return _Badge(src_light=_url, src_dark=_url_dark, anchor_attributes=anchor_attributes)

@@ -1,0 +1,71 @@
+$id: https://pybadger.repodynamics.com/schema/shields/badge-params
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Shields.IO Badge Settings
+description: Common settings for [Shields.IO](https://shields.io) badges.
+type: object
+properties:
+  label:
+    title: Badge Label
+    description: Label of the badge, i.e., the text displayed on the left side of the badge.
+    type: string
+  style:
+    title: Badge Style
+    description: Style of the badge.
+    type: string
+    enum: [ flat, flat-square, plastic, for-the-badge, social ]
+  color:
+    title: Badge Color
+    description: Color of the badge.
+    $ref: https://jsonschemata.repodynamics.com/config/shields-io/badge-params-color
+  label_color:
+    title: Badge Label Color
+    description: Color of the badge label.
+    $ref: https://jsonschemata.repodynamics.com/config/shields-io/badge-params-color
+  logo:
+    title: Badge Logo
+    description: |
+      It can either be a [Simple Icons](https://simpleicons.org/) icon slug
+      (see [full list](https://github.com/simple-icons/simple-icons/blob/master/slugs.md)),
+      or a base64-encoded string of an image in the format `data:{MIME-TYPE};base64,{DATA}`
+      (cf. [Shields.IO documentation](https://shields.io/docs/logos)).
+      The logo is displayed on the left side of the badge.
+    $ref: https://jsonschemata.repodynamics.com/string/oneline
+  logo_color:
+    title: Badge Logo Color
+    description: |
+      Color of the badge logo.
+      This is only applicable if `logo` is set to a Simple Icons slug.
+    $ref: https://jsonschemata.repodynamics.com/config/shields-io/badge-params-color
+  logo_width:
+    title: Badge Logo Width
+    description: |
+      Width of the badge logo.
+    oneOf:
+      - $ref: https://jsonschemata.repodynamics.com/integer/non-negative
+      - type: string
+        pattern: ^[1-9]\d*$
+  logo_size:
+    title: Badge Logo Size
+    description: |
+      Make the logo adaptively resize.
+      This is only applicable if `logo` is set to a Simple Icons slug.
+    type: string
+    enum: [ auto ]
+  logo_type:
+    title: Type of logo data.
+    type: string
+    enum: [ path, url, data, name ]
+  logo_extension:
+    title: Data type, i.e., file extension.
+    type: string
+    enum: [ apng, avif, bmp, gif, ico, jpg, jpeg, png, svg, tif, tiff, webp ]
+  cache_seconds:
+    title: Cache Seconds
+    description: |
+      The number of seconds to cache the badge.
+      This is useful to reduce the load on the Shields.IO server.
+      The default is 300 seconds (5 minutes).
+    oneOf:
+      - $ref: https://jsonschemata.repodynamics.com/integer/non-negative
+      - type: string
+        pattern: ^[1-9]\d*$

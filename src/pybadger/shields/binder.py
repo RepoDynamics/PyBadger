@@ -7,7 +7,7 @@ References
 
 import pylinks as _pylinks
 
-from pybadger import BadgeSettings as _BadgeSettings, Badge as _Badge
+from pybadger import Badge as _Badge
 from pybadger import shields as _shields
 
 
@@ -52,7 +52,6 @@ def github(
     ref: str,
     notebook_path: str | None = None,
     shields_settings: _shields.ShieldsSettings | None = None,
-    badge_settings: _BadgeSettings | None = None,
 ) -> _Badge:
     """Binder badge for a GitHub repository.
 
@@ -68,8 +67,6 @@ def github(
         The path to the notebook file to open.
     shields_settings : pybadger.shields.ShieldsSettings, optional
         Settings for the Shields.io badge to override the default global settings.
-    badge_settings : pybadger.BadgeSettings, optional
-        Settings for the badge to override the default global settings.
     """
     return _shields.core.static(
         message=_MSG,

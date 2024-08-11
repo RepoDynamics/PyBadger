@@ -1,4 +1,4 @@
 """PyBadger"""
 
-from pybadger.badge import Badge, ThemedBadge, BadgeSettings, badge_settings_default
+from pybadger.badge import Badge
 from pybadger import shields, pepy

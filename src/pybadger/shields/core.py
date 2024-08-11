@@ -2,15 +2,11 @@
 
 from typing import Literal as _Literal
 
-from pybadger import BadgeSettings as _BadgeSettings, Badge as _Badge
+from pybadger import Badge as _Badge
 from pybadger import shields as _shields
 
 
-def static(
-    message: str,
-    shields_settings: _shields.ShieldsSettings | None = None,
-    badge_settings: _BadgeSettings | None = None,
-) -> _Badge:
+def static(message: str) -> _Badge:
     """Create a static badge with custom text.
 
     Parameters
@@ -19,10 +15,6 @@ def static(
         The text on the (right side of the) badge.
         When `ShieldsSettings.label` is not set in `shields_settings`,
         the badge will only have one side.
-    shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default instance settings.
-    badge_settings : pybadger.BadgeSettings, optional
-        Settings for the badge to override the default instance settings.
     """
     # If `ShieldsSettings.label` is not set, Shields.io displays the text 'static' for the label.
     # To prevent this, set the label to an empty string when it is not provided.
@@ -41,11 +33,11 @@ def static(
 
 
 def dynamic(
-    typ: _Literal["json", "toml", "xml", "yaml"],
     url: str,
     query: str,
     prefix: str | None = None,
     suffix: str | None = None,
+    typ: _Literal["json", "toml", "xml", "yaml"] | None = None,
     shields_settings: _shields.ShieldsSettings | None = None,
     badge_settings: _BadgeSettings | None = None,
 ) -> _Badge:
@@ -84,6 +76,12 @@ def dynamic(
     - [Shields.io API - Dynamic XML Badge](https://shields.io/badges/dynamic-xml-badge)
     - [Shields.io API - Dynamic YAML Badge](https://shields.io/badges/dynamic-yaml-badge)
     """
+    if not typ:
+        typ = url.split(".")[-1]
+        if typ == "yml":
+            typ = "yaml"
+        if typ not in ["json", "toml", "xml", "yaml"]:
+            raise ValueError("Could not determine the file type. Please specify the 'typ' parameter.")
     return _shields.create(
         path=f"badge/dynamic/{typ}",
         queries={
