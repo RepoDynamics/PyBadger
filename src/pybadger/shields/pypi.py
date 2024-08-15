@@ -1,68 +1,42 @@
 from typing import Literal as _Literal
 import pylinks as _pylinks
 
-from pybadger import BadgeSettings as _BadgeSettings, Badge as _Badge
 from pybadger import shields as _shields
-from pybadger.shields.badge import ShieldsBadger as _ShieldsBadger
 
 
-class PyPI(_ShieldsBadger):
-    """Shields.io PyPI badges."""
+class PyPIBadger(_shields.Badger):
+    """Shields.io badge generator for PyPI."""
 
     def __init__(
         self,
         package: str,
         pypi_base_url: str = "https://pypi.org",
-        default_shields_settings: _shields.ShieldsSettings | None = None,
-        default_badge_settings: _BadgeSettings | None = None,
     ):
-        """
+        """Create a PyPI badger.
+
         Parameters
         ----------
         package : str
             Name of the package.
         pypi_base_url : str, default: 'https://pypi.org'
             Base URL of the PyPI website.
-        default_shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default global settings.
-            These will be used as default values for all badges,
-            unless the same argument is also provided to the method when creating a specific badge.
-        default_badge_settings : pybadger.BadgeSettings, optional
-            Settings for the badge to override the default global settings.
-            These will be used as default values for all badges,
-            unless the same argument is also provided to the method when creating a specific badge.
         """
-        super().__init__(
-            endpoint_start="pypi",
-            endpoint_key=package,
-            default_shields_settings=default_shields_settings,
-            default_badge_settings=default_badge_settings,
-        )
-        self.package = package
+        super().__init__(base_path="pypi")
+        self._package = package
         self._pypi_base_url = pypi_base_url
         self._link = _pylinks.site.pypi.package(name=package)
         return
 
-    def downloads(
-        self,
-        period: _Literal["t", "m", "w", "d"] = "t",
-        shields_settings: _shields.ShieldsSettings | None = None,
-        badge_settings: _BadgeSettings | None = None,
-    ) -> _Badge:
+    def downloads(self, period: _Literal["t", "m", "w", "d"] = "t") -> _shields.Badge:
         """Number of downloads.
 
         Parameters
         ----------
         period : {'t', 'm', 'w', 'd'}, default: 't'
             Period to display the number of downloads.
-            - 't': Total
             - 'm': Monthly
             - 'w': Weekly
             - 'd': Daily
-        shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default instance settings.
-        badge_settings : pybadger.BadgeSettings, optional
-            Settings for the badge to override the default instance settings.
 
         References
         ----------
@@ -70,201 +44,119 @@ class PyPI(_ShieldsBadger):
         [Shields.io API - Pepy Total Downloads](https://shields.io/badges/pepy-total-downlods)
         """
         period_name = {"d": "day", "w": "week", "m": "month"}
-        return _shields.create(
-            path=f"pepy/dt/{self.package}" if period == "t" else self._create_path(before=[f"d{period}"], after=[]),
-            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
-                label="Downloads", logo="pypi",
-            ),
-            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
-                title=(
-                    f"{'Total number' if period == 't' else 'Number'} of downloads "
-                    f"of all releases from PyPI{f', per {period_name[period]}' if period != 't' else ''}. "
-                    f"Click to see more details on pypi.org."
+        return self.create(
+            path=f"d{period}/{self._package}",
+            params={"label": "Downloads", "logo": "pypi"},
+            attrs_img={
+                "alt": "PyPI Downloads",
+                "title": (
+                    f"Number of downloads of all releases from PyPI, per {period_name[period]}. "
+                    f"Click to see more details on PyPI."
                 ),
-                alt="PyPI Downloads",
-                link=f"https://pepy.tech/projects/{self.package}",
-            ),
+            },
+            attrs_a={"href": f"https://pepy.tech/projects/{self._package}"},
         )
 
-    def license(
-        self,
-        shields_settings: _shields.ShieldsSettings | None = None,
-        badge_settings: _BadgeSettings | None = None,
-    ) -> _Badge:
+    def license(self) -> _shields.Badge:
         """Package license.
-
-        Parameters
-        ----------
-        shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default instance settings.
-        badge_settings : pybadger.BadgeSettings, optional
-            Settings for the badge to override the default instance settings.
 
         References
         ----------
         [Shields.io API - PyPI License](https://shields.io/badges/py-pi-license)
         """
-        return _shields.create(
-            path=self._create_path(["l"], []),
+        return self.create(
+            path=f"l/{self._package}",
             queries={"pypiBaseUrl": self._pypi_base_url},
-            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
-                label="License",
-            ),
-            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
-                title="Package license",
-                alt="Package License",
-                link=self._link.homepage
-            ),
+            params={"label": "License"},
+            attrs_img={
+                "alt": "License",
+                "title": "License of the package."
+            },
+            attrs_a={"href": self._link.homepage},
         )
 
-    def distribution_format(
-        self,
-        shields_settings: _shields.ShieldsSettings | None = None,
-        badge_settings: _BadgeSettings | None = None,
-    ) -> _Badge:
+    def distribution_format(self) -> _shields.Badge:
         """Format of the distribution package.
-
-        Parameters
-        ----------
-        shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default instance settings.
-        badge_settings : pybadger.BadgeSettings, optional
-            Settings for the badge to override the default instance settings.
 
         References
         ----------
         [Shields.io API - PyPI Format](https://shields.io/badges/py-pi-format)
         """
-        return _shields.create(
-            path=self._create_path(["format"], []),
+        return self.create(
+            path=f"format/{self._package}",
             queries={"pypiBaseUrl": self._pypi_base_url},
-            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
-                label="Distribution Format",
-            ),
-            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
-                title="Format of the distribution package",
-                alt="Distribution Format",
-                link=self._link.homepage
-            ),
+            params={"label": "Distribution Format"},
+            attrs_img={
+                "alt": "Distribution Format",
+                "title": "Format of the distribution package."
+            },
+            attrs_a={"href": self._link.homepage},
         )
 
-    def development_status(
-        self,
-        shields_settings: _shields.ShieldsSettings | None = None,
-        badge_settings: _BadgeSettings | None = None,
-    ) -> _Badge:
+    def development_status(self) -> _shields.Badge:
         """Development status.
-
-        Parameters
-        ----------
-        shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default instance settings.
-        badge_settings : pybadger.BadgeSettings, optional
-            Settings for the badge to override the default instance settings.
 
         References
         ----------
         [Shields.io API - PyPI Status](https://shields.io/badges/py-pi-status)
         """
-        return _shields.create(
-            path=self._create_path(["status"], []),
+        return self.create(
+            path=f"status/{self._package}",
             queries={"pypiBaseUrl": self._pypi_base_url},
-            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
-                label="Development Status",
-            ),
-            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
-                title="Development phase of the package.",
-                alt="Development Status",
-                link=self._link.homepage
-            ),
+            params={"label": "Development Status"},
+            attrs_img={
+                "alt": "Development Status",
+                "title": "Development phase of the package."
+            },
+            attrs_a={"href": self._link.homepage},
         )
 
-    def implementation(
-        self,
-        shields_settings: _shields.ShieldsSettings | None = None,
-        badge_settings: _BadgeSettings | None = None,
-    ) -> _Badge:
+    def implementation(self) -> _shields.Badge:
         """Python implementation used to build the package.
-
-        Parameters
-        ----------
-        shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default instance settings.
-        badge_settings : pybadger.BadgeSettings, optional
-            Settings for the badge to override the default instance settings.
 
         References
         ----------
         - [Shields.io API - PyPI Implementation](https://shields.io/badges/py-pi-implementation)
         """
-        return _shields.create(
-            path=self._create_path(["implementation"], []),
+        return self.create(
+            path=f"implementation/{self._package}",
             queries={"pypiBaseUrl": self._pypi_base_url},
-            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
-                label="Python Implementation",
-            ),
-            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
-                title="Python implementation used to build the package",
-                alt="Python Implementation",
-                link=self._link.homepage
-            ),
+            params={"label": "Python Implementation"},
+            attrs_img={
+                "alt": "Python Implementation",
+                "title": "Python implementation used to build the package."
+            },
+            attrs_a={"href": self._link.homepage},
         )
 
-    def python_versions(
-        self,
-        shields_settings: _shields.ShieldsSettings | None = None,
-        badge_settings: _BadgeSettings | None = None,
-    ) -> _Badge:
+    def python_versions(self) -> _shields.Badge:
         """Supported Python versions read from trove classifiers.
-
-        Parameters
-        ----------
-        shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default instance settings.
-        badge_settings : pybadger.BadgeSettings, optional
-            Settings for the badge to override the default instance settings.
 
         References
         ----------
         - [Shields.io API - Python Version](https://shields.io/badges/py-pi-python-version)
         """
-        return _shields.create(
-            path=self._create_path(["pyversions"], []),
+        return self.create(
+            path=f"pyversions/{self._package}",
             queries={"pypiBaseUrl": self._pypi_base_url},
-            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
-                label="Supports Python",
-            ),
-            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
-                title="Supported Python versions of the latest release.",
-                alt="Supported Python Versions",
-                link=self._link.homepage
-            ),
+            params={"label": "Supports Python"},
+            attrs_img={
+                "alt": "Supported Python Versions",
+                "title": "Supported Python versions of the latest package release."
+            },
+            attrs_a={"href": self._link.homepage},
         )
 
-    def version(
-        self,
-        shields_settings: _shields.ShieldsSettings | None = None,
-        badge_settings: _BadgeSettings | None = None,
-    ) -> _Badge:
+    def version(self) -> _shields.Badge:
         """Package version.
-
-        Parameters
-        ----------
-        shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default instance settings.
-        badge_settings : pybadger.BadgeSettings, optional
-            Settings for the badge to override the default instance settings.
 
         References
         ----------
         - [Shields.io API - PyPI Version](https://shields.io/badges/py-pi-version)
         """
-        return _shields.create(
-            path=self._create_path(["v"], []),
-            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(label="Latest Version"),
-            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
-                title="Latest release version",
-                alt="Latest Version",
-                link=self._link.homepage,
-            ),
+        return self.create(
+            path=f"v/{self._package}",
+            params={"label": "Latest Version"},
+            attrs_img={"alt": "Latest Version", "title": "Latest release version of the package."},
+            attrs_a={"href": self._link.homepage},
         )

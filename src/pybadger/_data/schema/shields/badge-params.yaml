@@ -16,11 +16,11 @@ properties:
   color:
     title: Badge Color
     description: Color of the badge.
-    $ref: https://jsonschemata.repodynamics.com/config/shields-io/badge-params-color
+    $ref: https://jsonschemata.repodynamics.com/color/css
   label_color:
     title: Badge Label Color
     description: Color of the badge label.
-    $ref: https://jsonschemata.repodynamics.com/config/shields-io/badge-params-color
+    $ref: https://jsonschemata.repodynamics.com/color/css
   logo:
     title: Badge Logo
     description: |
@@ -35,7 +35,7 @@ properties:
     description: |
       Color of the badge logo.
       This is only applicable if `logo` is set to a Simple Icons slug.
-    $ref: https://jsonschemata.repodynamics.com/config/shields-io/badge-params-color
+    $ref: https://jsonschemata.repodynamics.com/color/css
   logo_width:
     title: Badge Logo Width
     description: |
@@ -54,11 +54,92 @@ properties:
   logo_type:
     title: Type of logo data.
     type: string
-    enum: [ path, url, data, name ]
-  logo_extension:
-    title: Data type, i.e., file extension.
+    enum: [ name, data, file, url ]
+  logo_media_type:
+    title: Media Type.
     type: string
-    enum: [ apng, avif, bmp, gif, ico, jpg, jpeg, png, svg, tif, tiff, webp ]
+    enum:
+      - aces
+      - apng
+      - avci
+      - avcs
+      - avif
+      - bmp
+      - cgm
+      - dicom-rle
+      - dpx
+      - emf
+      - example
+      - fits
+      - g3fax
+      - gif
+      - heic
+      - heic-sequence
+      - heif
+      - heif-sequence
+      - hej2k
+      - hsj2
+      - ief
+      - j2c
+      - jls
+      - jp2
+      - jpeg
+      - jph
+      - jphc
+      - jpm
+      - jpx
+      - jxl
+      - jxr
+      - jxrA
+      - jxrS
+      - jxs
+      - jxsc
+      - jxsi
+      - jxss
+      - ktx
+      - ktx2
+      - naplps
+      - png
+      - prs.btif
+      - prs.pti
+      - pwg-raster
+      - svg+xml
+      - t38
+      - tiff
+      - tiff-fx
+      - vnd.adobe.photoshop
+      - vnd.airzip.accelerator.azv
+      - vnd.cns.inf2
+      - vnd.dece.graphic
+      - vnd.djvu
+      - vnd.dwg
+      - vnd.dxf
+      - vnd.dvb.subtitle
+      - vnd.fastbidsheet
+      - vnd.fpx
+      - vnd.fst
+      - vnd.fujixerox.edmics-mmr
+      - vnd.fujixerox.edmics-rlc
+      - vnd.globalgraphics.pgb
+      - vnd.microsoft.icon
+      - vnd.mix
+      - vnd.ms-modi
+      - vnd.mozilla.apng
+      - vnd.net-fpx
+      - vnd.pco.b16
+      - vnd.radiance
+      - vnd.sealed.png
+      - vnd.sealedmedia.softseal.gif
+      - vnd.sealedmedia.softseal.jpg
+      - vnd.svf
+      - vnd.tencent.tap
+      - vnd.valve.source.texture
+      - vnd.wap.wbmp
+      - vnd.xiff
+      - vnd.zbrush.pcx
+      - webp
+      - wmf
+      - x-icon
   cache_seconds:
     title: Cache Seconds
     description: |

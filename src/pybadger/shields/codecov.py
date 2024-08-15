@@ -1,12 +1,10 @@
 from typing import Literal as _Literal
 
-from pybadger import BadgeSettings as _BadgeSettings, Badge as _Badge
 from pybadger import shields as _shields
-from pybadger.shields.badge import ShieldsBadger as _ShieldsBadger
 
 
-class CodeCov(_ShieldsBadger):
-    """Shields.io CodeCov badges."""
+class CodeCovBadger(_shields.Badger):
+    """Shields.io badge generator for CodeCov."""
 
     def __init__(
         self,
@@ -14,53 +12,35 @@ class CodeCov(_ShieldsBadger):
         user: str,
         repo: str,
         token: str | None = None,
-        default_shields_settings: _shields.ShieldsSettings | None = None,
-        default_badge_settings: _BadgeSettings | None = None,
     ):
-        """
+        """Create a CodeCov badger.
+
         Parameters
         ----------
         vcs_name : {'github', 'gh', 'gitlab', 'gl', 'bitbucket', 'bb'}
-            The name of the version control system hosting the repository.
+            Name of the version control system hosting the repository.
         user : str
-            The username of the repository owner.
+            Username of the repository owner.
         repo : str
-            The name of the repository.
+            Name of the repository.
         token : str, optional
-            The token to authenticate with the CodeCov API for private repositories.
-            You can find the token under the badge section of your project settings page at:
-            https://codecov.io/[vcsName]/[user]/[repo]/settings/badge.
-        default_shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default global settings.
-            These will be used as default values for all badges,
-            unless the same argument is also provided to the method when creating a specific badge.
-        default_badge_settings : pybadger.BadgeSettings, optional
-            Settings for the badge to override the default global settings.
-            These will be used as default values for all badges,
-            unless the same argument is also provided to the method when creating a specific badge.
+            Token to authenticate with the CodeCov API for private repositories.
+            You can find the token under the badge section of your project settings page at
+            `https://codecov.io/[vcsName]/[user]/[repo]/settings/badge`.
         """
-        super().__init__(
-            endpoint_start="codecov/c",
-            endpoint_key=f"{vcs_name}/{user}/{repo}",
-            default_shields_settings=default_shields_settings,
-            default_badge_settings=default_badge_settings,
-        )
-        self.vcs_name = vcs_name
-        self.user = user
-        self.repo = repo
-        self.token = token
-        abbr = {"github": "gh", "gitlab": "gl", "bitbucket": "bb"}
-        self._link = f"https://codecov.io/{abbr[vcs_name]}/{user}/{repo}"
+        super().__init__(base_path="codecov/c")
+        self._token = token
+        vsc_abbr = {"github": "gh", "gitlab": "gl", "bitbucket": "bb"}.get(vcs_name, vcs_name)
+        self._link = f"https://codecov.io/{vsc_abbr}/{user}/{repo}"
+        self._path = f"{vcs_name}/{user}/{repo}"
         return
 
     def coverage(
         self,
         flag: str | None = None,
         branch: str | None = None,
-        shields_settings: _shields.ShieldsSettings | None = None,
-        badge_settings: _BadgeSettings | None = None,
-    ) -> _Badge:
-        """Code coverage.
+    ) -> _shields.Badge:
+        """Create a code coverage badge.
 
         Parameters
         ----------
@@ -68,25 +48,25 @@ class CodeCov(_ShieldsBadger):
             A specific flag to query.
         branch : str, optional
             Name of a specific branch to query.
-        shields_settings : pybadger.shields.ShieldsSettings, optional
-            Settings for the Shields.io badge to override the default instance settings.
-        badge_settings : pybadger.BadgeSettings, optional
-            Settings for the badge to override the default instance settings.
 
         References
         ----------
         [Shields.io API - Codecov](https://shields.io/badges/codecov)
         [Shields.io API - Codecov (with branch)](https://shields.io/badges/codecov-with-branch)
         """
-        return _shields.create(
-            path=self._create_path([], [branch] if branch else []),
-            queries={"token": self.token, "flag": flag},
-            shields_settings=self._shields_settings(shields_settings) + _shields.ShieldsSettings(
-                label="Test Coverage", logo="codecov",
-            ),
-            badge_settings=self._badge_settings(badge_settings) + _BadgeSettings(
-                title="Source code coverage by the test suite. Click to see more details on codecov.io.",
-                alt="Test Coverage",
-                link=self._link + f"/branch/{branch}" if branch else ''
-            ),
+        if branch:
+            link = f"{self._link}/branch/{branch}"
+            path = f"{self._path}/{branch}"
+        else:
+            link = self._link
+            path = self._path
+        return self.create(
+            path=path,
+            queries={"token": self._token, "flag": flag},
+            params={"label": "Test Coverage", "logo": "codecov"},
+            attrs_a={"href": link},
+            attrs_img={
+                "alt": "Test Coverage",
+                "title": "Source code coverage by the test suite. Click to see more details on codecov.io.",
+            },
         )

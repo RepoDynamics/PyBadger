@@ -1,97 +1,157 @@
-"""Abstract base class definition for all badge objects."""
+"""PyBadger base badge."""
 
+from __future__ import annotations
 
-# Non-standard libraries
 from markitup.html import element as _html
 import pylinks as _pylinks
 
+from pybadger.param_type import AttrDict as _AttrDict
+
 
 class Badge:
+    """Base Badge.
 
+    All platform-specific badges inherit from this class.
+    """
     def __init__(
         self,
-        src_light: str | _pylinks.url.URL,
-        src_dark: str | _pylinks.url.URL | None = None,
-        image_attributes: dict[str, str | bool] | None = None,
-        anchor_attributes: dict[str, str | bool] | None = None,
-        picture_attributes: dict[str, str | bool] | None = None,
-        src_light_attributes: dict[str, str | bool] | None = None,
-        src_dark_attributes: dict[str, str | bool] | None = None,
-        default_img_light: bool = True,
+        url: str | _pylinks.url.URL,
+        params_light: _AttrDict = None,
+        params_dark: _AttrDict = None,
+        attrs_img: _AttrDict = None,
+        attrs_a: _AttrDict = None,
+        attrs_picture: _AttrDict = None,
+        attrs_source_light: _AttrDict = None,
+        attrs_source_dark: _AttrDict = None,
+        default_light: bool = True,
+        merge_params: bool = True,
     ):
-        self.src_light = src_light
-        self.src_dark = src_dark
-        self.image_attributes = image_attributes or {}
-        self.anchor_attributes = anchor_attributes or {}
-        self.picture_attributes = picture_attributes or {}
-        self.src_light_attributes = src_light_attributes or {}
-        self.src_dark_attributes = src_dark_attributes or {}
-        self.default_img_light = default_img_light
+        self.url = _pylinks.url.create(str(url))
+        self.params_light = params_light or {}
+        self.params_dark = params_dark or {}
+        self.attrs_img = attrs_img or {}
+        self.attrs_a = attrs_a or {}
+        self.attrs_picture = attrs_picture or {}
+        self.attrs_source_light = attrs_source_light or {}
+        self.attrs_source_dark = attrs_source_dark or {}
+        self.default_light = default_light
+        self.merge_params = merge_params
         return
 
     def img(
         self,
-        image_attributes: dict[str, str | bool] | None = None,
-        anchor_attributes: dict[str, str | bool] | None = None,
+        params: _AttrDict = None,
+        attrs_img: _AttrDict = None,
+        attrs_a: _AttrDict = None,
         light: bool | None = None,
+        merge_params: bool | None = None,
     ) -> _html.Img | _html.A:
-        image_attributes = image_attributes if isinstance(image_attributes, dict) else self.image_attributes
-        default_light = light if light is not None else self.default_img_light
-        src = self.src_light if default_light else (self.src_dark if self.src_dark else self.src_light)
-        img = _html.img(src=src, **image_attributes)
-        a_attrs = anchor_attributes if isinstance(anchor_attributes, dict) else self.anchor_attributes
-        if not a_attrs:
+
+        default_light = light if light is not None else self.default_light
+        merge_params = merge_params if merge_params is not None else self.merge_params
+        if params is None:
+            if default_light:
+                params = self.params_light
+                params_other = self.params_dark
+            else:
+                params = self.params_dark
+                params_other = self.params_light
+            if merge_params:
+                params = params_other | params
+        attrs_img = attrs_img if isinstance(attrs_img, dict) else self.attrs_img
+        attrs_a = attrs_a if isinstance(attrs_a, dict) else self.attrs_a
+        img = _html.img(src=self._generate_url(params), **attrs_img)
+        if not attrs_a:
             return img
-        return _html.a(img, a_attrs)
+        return _html.a(img, attrs_a)
 
     def picture(
         self,
-        image_attributes: dict[str, str | bool] | None = None,
-        anchor_attributes: dict[str, str | bool] | None = None,
-        picture_attributes: dict[str, str | bool] | None = None,
-        src_light_attributes: dict[str, str | bool] | None = None,
-        src_dark_attributes: dict[str, str | bool] | None = None,
-        default_img_light: bool | None = None,
-    ):
+        params_light: _AttrDict = None,
+        params_dark: _AttrDict = None,
+        attrs_img: _AttrDict = None,
+        attrs_a: _AttrDict = None,
+        attrs_picture: _AttrDict = None,
+        attrs_source_light: _AttrDict = None,
+        attrs_source_dark: _AttrDict = None,
+        default_light: bool = True,
+        merge_params: bool = True
+    ) -> _html.Picture | _html.A:
+        params_light = params_light or self.params_light
+        params_dark = params_dark or self.params_dark
+        if merge_params:
+            params_light = params_dark | params_light
+            params_dark = params_light | params_dark
         picture = _html.picture_color_scheme(
-            self.src_light,
-            self.src_dark or self.src_light,
-            picture_attributes if isinstance(picture_attributes, dict) else self.picture_attributes,
-            src_light_attributes if isinstance(src_light_attributes, dict) else self.src_light_attributes,
-            src_dark_attributes if isinstance(src_dark_attributes, dict) else self.src_dark_attributes,
-            image_attributes if isinstance(image_attributes, dict) else self.image_attributes,
-            default_img_light if default_img_light is not None else self.default_img_light,
+            self._generate_url(params_light),
+            self._generate_url(params_dark),
+            attrs_picture if isinstance(attrs_picture, dict) else self.attrs_picture,
+            attrs_source_light if isinstance(attrs_source_light, dict) else self.attrs_source_light,
+            attrs_source_dark if isinstance(attrs_source_dark, dict) else self.attrs_source_dark,
+            attrs_img if isinstance(attrs_img, dict) else self.attrs_img,
+            default_light if default_light is not None else self.default_light,
         )
-        a_attrs = anchor_attributes if isinstance(anchor_attributes, dict) else self.anchor_attributes
-        if not a_attrs:
+        attrs_a = attrs_a if isinstance(attrs_a, dict) else self.attrs_a
+        if not attrs_a:
             return picture
-        return _html.a(picture, a_attrs)
+        return _html.a(picture, attrs_a)
+
+    def unset_all(self) -> Badge:
+        self.unset_params()
+        self.unset_attrs()
+        return self
+
+    def unset_params(self) -> Badge:
+        self.params_light = {}
+        self.params_dark = {}
+        return self
+
+    def unset_attrs(self) -> Badge:
+        self.attrs_img = {}
+        self.attrs_a = {}
+        self.attrs_picture = {}
+        self.attrs_source_light = {}
+        self.attrs_source_dark = {}
+        return self
 
     def set(
         self,
-        image_attributes: dict[str, str | bool] | None = None,
-        anchor_attributes: dict[str, str | bool] | None = None,
-        picture_attributes: dict[str, str | bool] | None = None,
-        src_light_attributes: dict[str, str | bool] | None = None,
-        src_dark_attributes: dict[str, str | bool] | None = None,
-        default_img_light: bool | None = None,
-    ) -> None:
-        args = locals()
-        for attr in (
-            "image_attributes",
-            "anchor_attributes",
-            "picture_attributes",
-            "src_light_attributes",
-            "src_dark_attributes",
-            "default_img_light",
-        ):
-            value = args[attr]
-            if value is not None:
-                if attr == "default_img_light":
-                    setattr(self, attr, value)
-                else:
-                    setattr(self, attr, getattr(self, attr) | value)
-        return
+        params_light: _AttrDict = None,
+        params_dark: _AttrDict = None,
+        attrs_img: _AttrDict = None,
+        attrs_a: _AttrDict = None,
+        attrs_picture: _AttrDict = None,
+        attrs_source_light: _AttrDict = None,
+        attrs_source_dark: _AttrDict = None,
+    ) -> Badge:
+        self.set_params(params_light, params_dark)
+        self.set_attrs(attrs_img, attrs_a, attrs_picture, attrs_source_light, attrs_source_dark)
+        return self
+
+    def set_params(self, light: dict | None = None, params_dark: dict | None = None) -> Badge:
+        params_input = locals()
+        for param_type in ("light", "dark"):
+            params = params_input[param_type]
+            if params is not None:
+                new_params = getattr(self, f"params_{param_type}") | params
+                setattr(self, f"params_{param_type}", new_params)
+        return self
+
+    def set_attrs(
+        self,
+        img: _AttrDict = None,
+        a: _AttrDict = None,
+        picture: _AttrDict = None,
+        source_light: _AttrDict = None,
+        source_dark: _AttrDict = None,
+    ) -> Badge:
+        attrs_input = locals()
+        for attr_type in ("img", "a", "picture", "source_light", "source_dark"):
+            attrs = attrs_input[attr_type]
+            if attrs is not None:
+                new_attrs = getattr(self, f"attrs_{attr_type}") | attrs
+                setattr(self, f"attrs_{attr_type}", new_attrs)
+        return self
 
     def display(self):
         from IPython.display import HTML, display
@@ -99,7 +159,7 @@ class Badge:
         return
 
     def __str__(self):
-        element = self.picture() if self.src_dark else self.img()
+        element = self.picture() if bool(self.params_light) and bool(self.params_dark) else self.img()
         return str(element)
 
     def __add__(self, other):
@@ -108,12 +168,23 @@ class Badge:
         if not isinstance(other, Badge):
             raise TypeError("Only badges can be added to badges.")
         return Badge(
-            src_light=other.src_light or self.src_light,
-            src_dark=other.src_dark or self.src_dark,
-            image_attributes=self.image_attributes | other.image_attributes,
-            anchor_attributes=self.anchor_attributes | other.anchor_attributes,
-            picture_attributes=self.picture_attributes | other.picture_attributes,
-            src_light_attributes=self.src_light_attributes | other.src_light_attributes,
-            src_dark_attributes=self.src_dark_attributes | other.src_dark_attributes,
-            default_img_light=self.default_img_light or other.default_img_light,
+            url=other.url or self.url,
+            params_light=self.params_light | other.params_light,
+            params_dark=self.params_dark | other.params_dark,
+            attrs_img=self.attrs_img | other.attrs_img,
+            attrs_a=self.attrs_a | other.attrs_a,
+            attrs_picture=self.attrs_picture | other.attrs_picture,
+            attrs_source_light=self.attrs_source_light | other.attrs_source_light,
+            attrs_source_dark=self.attrs_source_dark | other.attrs_source_dark,
+            default_light=self.default_light or other.default_light,
+            merge_params=self.merge_params or other.merge_params,
         )
+
+    def _generate_url(self, params) -> str:
+        url = self.url.copy()
+        return str(self._generate_full_url(url, params))
+
+    @staticmethod
+    def _generate_full_url(url: _pylinks.url.URL, params: dict[str, str | bool]) -> _pylinks.url.URL:
+        url.queries |= params
+        return url
