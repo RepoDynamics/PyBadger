@@ -17,11 +17,14 @@ namespaces = true
 # ----------------------------------------- Project Metadata -------------------------------------
 #
 [project]
-version = "0.0.0.dev6"
+version = "0.0.0.dev7"
 name = "PyBadger"
 requires-python = ">=3.10"
 dependencies = [
     "pylinks",
-    "markitup"
+    "markitup",
+    "JSONSchemata",
+    "PySerials",
+    "PkgData",
 ]
 

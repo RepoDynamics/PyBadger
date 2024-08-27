@@ -20,27 +20,16 @@ from pybadger.shields.librariesio import LibrariesIOBadger
 from pybadger.shields.pepy import PePyBadger
 from pybadger.shields.pypi import PyPIBadger
 from pybadger.shields.readthedocs import ReadTheDocsBadger
+from pybadger.shields.repodynamics import RepoDynamicsBadger
 
 
 def generic(
     path: _Stringable,
     queries: _AttrDict = None,
-    params: _AttrDict = None,
-    attrs_img: _AttrDict = None,
-    attrs_a: _AttrDict = None,
-    attrs_picture: _AttrDict = None,
-    attrs_source_light: _AttrDict = None,
-    attrs_source_dark: _AttrDict = None,
 ) -> Badge:
     return Badger().create(
         path=path,
         queries=queries,
-        params=params,
-        attrs_img=attrs_img,
-        attrs_a=attrs_a,
-        attrs_picture=attrs_picture,
-        attrs_source_light=attrs_source_light,
-        attrs_source_dark=attrs_source_dark,
     )
 
 
@@ -280,3 +269,8 @@ def readthedocs(name: str) -> ReadTheDocsBadger:
         such as label, logo, and HTML attributes.
     """
     return ReadTheDocsBadger(name=name)
+
+
+def repodynamics() -> RepoDynamicsBadger:
+    """Create a RepoDynamics badger."""
+    return RepoDynamicsBadger()

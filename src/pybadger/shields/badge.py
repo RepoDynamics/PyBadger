@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path as _Path
 import pylinks as _pylinks
-from markitup import txt as _txt
+from markitup import text as _txt
 
 import pybadger
 from pybadger.param_type import AttrDict as _AttrDict

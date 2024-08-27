@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from markitup.html import element as _html
+from markitup.html import elem as _html
 import pylinks as _pylinks
 
 from pybadger.param_type import AttrDict as _AttrDict
@@ -23,6 +23,8 @@ class Badge:
         attrs_picture: _AttrDict = None,
         attrs_source_light: _AttrDict = None,
         attrs_source_dark: _AttrDict = None,
+        attrs_span: _AttrDict = None,
+        attrs_div: _AttrDict = None,
         default_light: bool = True,
         merge_params: bool = True,
     ):
@@ -34,6 +36,8 @@ class Badge:
         self.attrs_picture = attrs_picture or {}
         self.attrs_source_light = attrs_source_light or {}
         self.attrs_source_dark = attrs_source_dark or {}
+        self.attrs_span = attrs_span or {}
+        self.attrs_div = attrs_div or {}
         self.default_light = default_light
         self.merge_params = merge_params
         return
@@ -43,10 +47,11 @@ class Badge:
         params: _AttrDict = None,
         attrs_img: _AttrDict = None,
         attrs_a: _AttrDict = None,
+        attrs_span: _AttrDict = None,
+        attrs_div: _AttrDict = None,
         light: bool | None = None,
         merge_params: bool | None = None,
-    ) -> _html.Img | _html.A:
-
+    ) -> _html.Element:
         default_light = light if light is not None else self.default_light
         merge_params = merge_params if merge_params is not None else self.merge_params
         if params is None:
@@ -59,11 +64,8 @@ class Badge:
             if merge_params:
                 params = params_other | params
         attrs_img = attrs_img if isinstance(attrs_img, dict) else self.attrs_img
-        attrs_a = attrs_a if isinstance(attrs_a, dict) else self.attrs_a
         img = _html.img(src=self._generate_url(params), **attrs_img)
-        if not attrs_a:
-            return img
-        return _html.a(img, attrs_a)
+        return self._add_to_containers(img, attrs_a, attrs_span, attrs_div)
 
     def picture(
         self,
@@ -74,9 +76,11 @@ class Badge:
         attrs_picture: _AttrDict = None,
         attrs_source_light: _AttrDict = None,
         attrs_source_dark: _AttrDict = None,
+        attrs_span: _AttrDict = None,
+        attrs_div: _AttrDict = None,
         default_light: bool = True,
         merge_params: bool = True
-    ) -> _html.Picture | _html.A:
+    ) -> _html.Element:
         params_light = params_light or self.params_light
         params_dark = params_dark or self.params_dark
         if merge_params:
@@ -91,10 +95,7 @@ class Badge:
             attrs_img if isinstance(attrs_img, dict) else self.attrs_img,
             default_light if default_light is not None else self.default_light,
         )
-        attrs_a = attrs_a if isinstance(attrs_a, dict) else self.attrs_a
-        if not attrs_a:
-            return picture
-        return _html.a(picture, attrs_a)
+        return self._add_to_containers(picture, attrs_a, attrs_span, attrs_div)
 
     def unset_all(self) -> Badge:
         self.unset_params()
@@ -112,6 +113,8 @@ class Badge:
         self.attrs_picture = {}
         self.attrs_source_light = {}
         self.attrs_source_dark = {}
+        self.attrs_span = {}
+        self.attrs_div = {}
         return self
 
     def set(
@@ -123,12 +126,14 @@ class Badge:
         attrs_picture: _AttrDict = None,
         attrs_source_light: _AttrDict = None,
         attrs_source_dark: _AttrDict = None,
+        attrs_span: _AttrDict = None,
+        attrs_div: _AttrDict = None,
     ) -> Badge:
         self.set_params(params_light, params_dark)
-        self.set_attrs(attrs_img, attrs_a, attrs_picture, attrs_source_light, attrs_source_dark)
+        self.set_attrs(attrs_img, attrs_a, attrs_picture, attrs_source_light, attrs_source_dark, attrs_span, attrs_div)
         return self
 
-    def set_params(self, light: dict | None = None, params_dark: dict | None = None) -> Badge:
+    def set_params(self, light: dict | None = None, dark: dict | None = None) -> Badge:
         params_input = locals()
         for param_type in ("light", "dark"):
             params = params_input[param_type]
@@ -144,9 +149,11 @@ class Badge:
         picture: _AttrDict = None,
         source_light: _AttrDict = None,
         source_dark: _AttrDict = None,
+        span: _AttrDict = None,
+        div: _AttrDict = None,
     ) -> Badge:
         attrs_input = locals()
-        for attr_type in ("img", "a", "picture", "source_light", "source_dark"):
+        for attr_type in ("img", "a", "picture", "source_light", "source_dark", "span", "div"):
             attrs = attrs_input[attr_type]
             if attrs is not None:
                 new_attrs = getattr(self, f"attrs_{attr_type}") | attrs
@@ -176,9 +183,22 @@ class Badge:
             attrs_picture=self.attrs_picture | other.attrs_picture,
             attrs_source_light=self.attrs_source_light | other.attrs_source_light,
             attrs_source_dark=self.attrs_source_dark | other.attrs_source_dark,
+            attrs_span=self.attrs_span | other.attrs_span,
+            attrs_div=self.attrs_div | other.attrs_div,
             default_light=self.default_light or other.default_light,
             merge_params=self.merge_params or other.merge_params,
         )
+
+    def _add_to_containers(self, element, attrs_a, attrs_span, attrs_div):
+        for container_attrs, container_default_attrs, container_gen in (
+            (attrs_a, self.attrs_a, _html.a),
+            (attrs_span, self.attrs_span, _html.span),
+            (attrs_div, self.attrs_div, _html.div),
+        ):
+            container_attrs = container_attrs if isinstance(container_attrs, dict) else container_default_attrs
+            if container_attrs:
+                element = container_gen(element, container_attrs)
+        return element
 
     def _generate_url(self, params) -> str:
         url = self.url.copy()
