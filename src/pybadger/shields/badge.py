@@ -1,10 +1,9 @@
 from __future__ import annotations
 from pathlib import Path as _Path
 import pylinks as _pylinks
-from markitup import text as _txt
 
 import pybadger
-from pybadger.param_type import AttrDict as _AttrDict
+from pybadger.protocol import AttrDict as _AttrDict
 
 
 class Badge(pybadger.Badge):
@@ -15,6 +14,10 @@ class Badge(pybadger.Badge):
         url: _pylinks.url.URL,
         params: _AttrDict,
     ) -> _pylinks.url.URL:
+
+        def snake_to_camel(string):
+            components = string.split('_')
+            return ''.join([components[0]] + [x.title() for x in components[1:]])
 
         def process_logo(logo) -> str:
             logo = str(logo)
@@ -54,7 +57,7 @@ class Badge(pybadger.Badge):
             ("cache_seconds", None),
         ):
             if param in params:
-                shields_param_name = _txt.snake_to_camel(param)
+                shields_param_name = snake_to_camel(param)
                 value = params[param]
                 value_processed = param_processor(value) if param_processor else value
                 url.queries[shields_param_name] = value_processed

@@ -5,7 +5,7 @@ from typing import Literal as _Literal
 import pylinks as _pylinks
 
 import pybadger as _pybadger
-from pybadger.param_type import AttrDict as _AttrDict, Stringable as _Stringable
+from pybadger.protocol import AttrDict as _AttrDict, Stringable as _Stringable
 
 
 class Badger:
@@ -67,7 +67,7 @@ class Badger:
         url = self._base_url / path
         url.queries |= queries or {}
         return self._badge(
-            url=url,
+            base_url=url,
             params_light=params,
             attrs_img=attrs_img,
             attrs_a=attrs_a,

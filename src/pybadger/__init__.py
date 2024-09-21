@@ -1,28 +1,33 @@
 """PyBadger"""
+from __future__ import annotations
 
-from typing import Literal as _Literal
+from typing import TYPE_CHECKING as _TYPE_CHECKING
 from types import FunctionType as _FunctionType, MethodType as _MethodType
 import inspect as _inspect
 
 from pybadger.badge import Badge
 from pybadger.badger import Badger
-from pybadger import shields, pepy, param_type
+from pybadger import shields, pepy, protocol
+
+if _TYPE_CHECKING:
+    from typing import Literal
+    from pybadger.protocol import AttrDict
 
 
 def create(
-    platform: _Literal["shields", "pepy"] = "shields",
+    platform: Literal["shields", "pepy"] = "shields",
     service: str = "generic",
     endpoint: str | None = None,
     args: dict | None = None,
-    params_light: param_type.AttrDict = None,
-    params_dark: param_type.AttrDict = None,
-    attrs_img: param_type.AttrDict = None,
-    attrs_a: param_type.AttrDict = None,
-    attrs_picture: param_type.AttrDict = None,
-    attrs_source_light: param_type.AttrDict = None,
-    attrs_source_dark: param_type.AttrDict = None,
-    attrs_span: param_type.AttrDict = None,
-    attrs_div: param_type.AttrDict = None,
+    params_light: AttrDict = None,
+    params_dark: AttrDict = None,
+    attrs_img: AttrDict = None,
+    attrs_a: AttrDict = None,
+    attrs_picture: AttrDict = None,
+    attrs_source_light: AttrDict = None,
+    attrs_source_dark: AttrDict = None,
+    attrs_span: AttrDict = None,
+    attrs_div: AttrDict = None,
     default_light: bool = True,
     merge_params: bool = True,
     use_defaults: bool = True

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from markitup.html import elem as _html
+import htmp as _htmp
 import pylinks as _pylinks
 
-from pybadger.param_type import AttrDict as _AttrDict
+from pybadger.protocol import AttrDict as _AttrDict
 
 
 class Badge:
@@ -15,7 +15,7 @@ class Badge:
     """
     def __init__(
         self,
-        url: str | _pylinks.url.URL,
+        base_url: str | _pylinks.url.URL,
         params_light: _AttrDict = None,
         params_dark: _AttrDict = None,
         attrs_img: _AttrDict = None,
@@ -28,7 +28,7 @@ class Badge:
         default_light: bool = True,
         merge_params: bool = True,
     ):
-        self.url = _pylinks.url.create(str(url))
+        self.base_url = _pylinks.url.create(str(base_url))
         self.params_light = params_light or {}
         self.params_dark = params_dark or {}
         self.attrs_img = attrs_img or {}
@@ -42,6 +42,26 @@ class Badge:
         self.merge_params = merge_params
         return
 
+    def url(
+        self,
+        params: _AttrDict = None,
+        light: bool | None = None,
+        merge_params: bool | None = None,
+    ) -> _pylinks.url.URL:
+        if params is None:
+            default_light = light if light is not None else self.default_light
+            merge_params = merge_params if merge_params is not None else self.merge_params
+            if default_light:
+                params = self.params_light
+                params_other = self.params_dark
+            else:
+                params = self.params_dark
+                params_other = self.params_light
+            if merge_params:
+                params = params_other | params
+        url = self.base_url.copy()
+        return self._generate_full_url(url, params)
+
     def img(
         self,
         params: _AttrDict = None,
@@ -51,20 +71,10 @@ class Badge:
         attrs_div: _AttrDict = None,
         light: bool | None = None,
         merge_params: bool | None = None,
-    ) -> _html.Element:
-        default_light = light if light is not None else self.default_light
-        merge_params = merge_params if merge_params is not None else self.merge_params
-        if params is None:
-            if default_light:
-                params = self.params_light
-                params_other = self.params_dark
-            else:
-                params = self.params_dark
-                params_other = self.params_light
-            if merge_params:
-                params = params_other | params
+    ) -> _htmp.Element:
+        url = self.url(params=params, light=light, merge_params=merge_params)
         attrs_img = attrs_img if isinstance(attrs_img, dict) else self.attrs_img
-        img = _html.img(src=self._generate_url(params), **attrs_img)
+        img = _htmp.element.img(src=str(url), **attrs_img)
         return self._add_to_containers(img, attrs_a, attrs_span, attrs_div)
 
     def picture(
@@ -80,15 +90,15 @@ class Badge:
         attrs_div: _AttrDict = None,
         default_light: bool = True,
         merge_params: bool = True
-    ) -> _html.Element:
+    ) -> _htmp.Element:
         params_light = params_light or self.params_light
         params_dark = params_dark or self.params_dark
         if merge_params:
             params_light = params_dark | params_light
             params_dark = params_light | params_dark
-        picture = _html.picture_color_scheme(
-            self._generate_url(params_light),
-            self._generate_url(params_dark),
+        picture = _htmp.elementor.picture_color_scheme(
+            self.url(params_light),
+            self.url(params_dark),
             attrs_picture if isinstance(attrs_picture, dict) else self.attrs_picture,
             attrs_source_light if isinstance(attrs_source_light, dict) else self.attrs_source_light,
             attrs_source_dark if isinstance(attrs_source_dark, dict) else self.attrs_source_dark,
@@ -175,7 +185,7 @@ class Badge:
         if not isinstance(other, Badge):
             raise TypeError("Only badges can be added to badges.")
         return Badge(
-            url=other.url or self.url,
+            base_url=other.base_url or self.base_url,
             params_light=self.params_light | other.params_light,
             params_dark=self.params_dark | other.params_dark,
             attrs_img=self.attrs_img | other.attrs_img,
@@ -191,18 +201,14 @@ class Badge:
 
     def _add_to_containers(self, element, attrs_a, attrs_span, attrs_div):
         for container_attrs, container_default_attrs, container_gen in (
-            (attrs_a, self.attrs_a, _html.a),
-            (attrs_span, self.attrs_span, _html.span),
-            (attrs_div, self.attrs_div, _html.div),
+            (attrs_a, self.attrs_a, _htmp.element.a),
+            (attrs_span, self.attrs_span, _htmp.element.span),
+            (attrs_div, self.attrs_div, _htmp.element.div),
         ):
             container_attrs = container_attrs if isinstance(container_attrs, dict) else container_default_attrs
             if container_attrs:
                 element = container_gen(element, container_attrs)
         return element
-
-    def _generate_url(self, params) -> str:
-        url = self.url.copy()
-        return str(self._generate_full_url(url, params))
 
     @staticmethod
     def _generate_full_url(url: _pylinks.url.URL, params: dict[str, str | bool]) -> _pylinks.url.URL:

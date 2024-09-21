@@ -8,7 +8,7 @@ References
 
 from typing import Literal as _Literal
 
-from pybadger.param_type import AttrDict as _AttrDict, Stringable as _Stringable
+from pybadger.protocol import AttrDict as _AttrDict, Stringable as _Stringable
 from pybadger.shields.badge import Badge
 from pybadger.shields.badger import Badger
 from pybadger.shields.binder import BinderBadger
@@ -264,9 +264,6 @@ def readthedocs(name: str) -> ReadTheDocsBadger:
     ----------
     name : str
         The name of the project on Read The Docs.
-    use_defaults : bool, default: True
-        Whether to add default badge parameters
-        such as label, logo, and HTML attributes.
     """
     return ReadTheDocsBadger(name=name)
 

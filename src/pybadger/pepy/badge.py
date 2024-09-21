@@ -1,7 +1,7 @@
 import pylinks as _pylinks
 
 import pybadger
-from pybadger.param_type import AttrDict as _AttrDict
+from pybadger.protocol import AttrDict as _AttrDict
 
 
 class Badge(pybadger.Badge):
