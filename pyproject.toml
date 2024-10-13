@@ -17,11 +17,11 @@ namespaces = true
 # ----------------------------------------- Project Metadata -------------------------------------
 #
 [project]
-version = "0.0.0.dev18"
+version = "0.0.0.dev19"
 name = "PyBadger"
 requires-python = ">=3.10"
 dependencies = [
-    "PyLinks == 0.0.0.dev34",
+    "PyLinks == 0.0.0.dev35",
     "HTMP == 0.0.0.dev5",
     "ProtocolMan == 0.0.0.dev2",
     "IPython",
