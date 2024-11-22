@@ -11,6 +11,7 @@ class PyPIBadger(_shields.Badger):
         self,
         package: str,
         pypi_base_url: str = "https://pypi.org",
+        validate_urls: bool = False,
     ):
         """Create a PyPI badger.
 
@@ -24,15 +25,15 @@ class PyPIBadger(_shields.Badger):
         super().__init__(base_path="pypi")
         self._package = package
         self._pypi_base_url = pypi_base_url
-        self._link = _pylinks.site.pypi.package(name=package)
+        self._link = _pylinks.site.pypi.package(name=package, validate=validate_urls)
         return
 
-    def downloads(self, period: _Literal["t", "m", "w", "d"] = "t") -> _shields.Badge:
+    def downloads(self, period: _Literal["m", "w", "d"] = "m") -> _shields.Badge:
         """Number of downloads.
 
         Parameters
         ----------
-        period : {'t', 'm', 'w', 'd'}, default: 't'
+        period : {'m', 'w', 'd'}, default: 'm'
             Period to display the number of downloads.
             - 'm': Monthly
             - 'w': Weekly
