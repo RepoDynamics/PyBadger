@@ -212,8 +212,8 @@ def github(
 
 
 def librariesio(
-    platform: str,
-    package: str,
+    platform: str | None = None,
+    package: str | None = None,
     scope: str | None = None,
 ) -> LibrariesIOBadger:
     """Create a Libraries.io badger.
@@ -271,3 +271,18 @@ def readthedocs(name: str) -> ReadTheDocsBadger:
 def repodynamics() -> RepoDynamicsBadger:
     """Create a RepoDynamics badger."""
     return RepoDynamicsBadger()
+
+
+def website(
+    url: str,
+    up_message: str | None = None,
+    up_color: str | None = None,
+    down_message: str | None = None,
+    down_color: str | None = None,
+):
+    return Badger().create(
+        path="website",
+        queries={k: v for k, v in locals().items() if v is not None},
+        attrs_img={"alt": "Website Status", "title": "Server status of our website."},
+        attrs_a={"href": url}
+    )
