@@ -14,9 +14,10 @@ class LibrariesIOBadger(_shields.Badger):
 
     def __init__(
         self,
-        platform: str,
-        package: str,
+        platform: str | None = None,
+        package: str | None = None,
         scope: str | None = None,
+        validate_urls: bool = False,
     ):
         """Create a Libraries.io badger.
 
@@ -30,8 +31,10 @@ class LibrariesIOBadger(_shields.Badger):
             The scope of the npm package, e.g., `@babel`.
         """
         super().__init__(base_path="librariesio")
-        self._link = _pylinks.site.lib_io.package(platform=platform, package=package)
-        self._endpoint_key = f"{platform}/{scope}/{package}" if scope else f"{platform}/{package}"
+        if platform and package:
+            self._link = _pylinks.site.lib_io.package(platform=platform, package=package, validate=validate_urls)
+            self._endpoint_key = f"{platform}/{scope}/{package}" if scope else f"{platform}/{package}"
+        self._logo = {"logo": "librariesdotio", "logo_color": "#337AB7"}
         return
 
     def dependency_status(self, version: str | None = None) -> _shields.Badge:
@@ -53,7 +56,7 @@ class LibrariesIOBadger(_shields.Badger):
         """
         return self.create(
             path=f"release/{self._endpoint_key}{f"/{version}" if version else ""}",
-            params={"label": "Dependencies"},
+            params={"label": "Dependencies"} | self._logo,
             attrs_img={
                 "alt": "Dependency Status",
                 "title": "Status of the project's dependencies.",
@@ -70,7 +73,7 @@ class LibrariesIOBadger(_shields.Badger):
         """
         return self.create(
             path=f"github/{user}/{repo}",
-            params={"label": "Dependencies"},
+            params={"label": "Dependencies"} | self._logo,
             attrs_img={
                 "alt": "Dependency Status",
                 "title": "Status of the project's dependencies.",
@@ -95,7 +98,7 @@ class LibrariesIOBadger(_shields.Badger):
         """
         return self.create(
             path=f"{"dependent-repos" if repo else "dependents"}/{self._endpoint_key}",
-            params={"label": "Dependents"},
+            params={"label": "Dependents"} | self._logo,
             attrs_img={
                 "alt": "Dependents",
                 "title": f"Number of {'repositories' if repo else 'packages'} that depend on us.",
@@ -112,7 +115,7 @@ class LibrariesIOBadger(_shields.Badger):
         """
         return self.create(
             path=f"sourcerank/{self._endpoint_key}",
-            params={"label": "SourceRank"},
+            params={"label": "SourceRank"} | self._logo,
             attrs_img={
                 "alt": "SourceRank",
                 "title": (
