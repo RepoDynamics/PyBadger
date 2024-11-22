@@ -10,6 +10,7 @@ class CondaBadger(_shields.Badger):
         self,
         package: str,
         channel: str = "conda-forge",
+        validate_urls: bool = False,
     ):
         """Create a Conda badger.
 
@@ -25,7 +26,7 @@ class CondaBadger(_shields.Badger):
             "logo": "condaforge" if channel == "conda-forge" else "anaconda",
             "logo_color": "#000000" if channel == "conda-forge" else "#44A833",
         }
-        self._link = _pylinks.site.conda.package(name=package, channel=channel)
+        self._link = _pylinks.site.conda.package(name=package, channel=channel, validate=validate_urls)
         self._endpoint_key = f"{channel}/{package}"
         return
 
