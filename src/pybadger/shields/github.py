@@ -12,6 +12,7 @@ class GitHubBadger(_shields.Badger):
         self,
         user: str,
         repo: str,
+        validate_urls: bool = False,
     ):
         """Create a GitHub badger.
 
@@ -25,7 +26,7 @@ class GitHubBadger(_shields.Badger):
         super().__init__(base_path="github")
         self._user = user
         self._repo = repo
-        self._repo_link = _pylinks.site.github.user(user).repo(repo)
+        self._repo_link = _pylinks.site.github.user(user).repo(repo, validate=validate_urls)
         self._endpoint_key = f"{user}/{repo}"
         return
 
@@ -77,7 +78,7 @@ class GitHubBadger(_shields.Badger):
             path=path,
             queries={"authorFilter": author_filter},
             params={"label": "Commits"},
-            attrs_img={"alt": "Commit activity", "title": title},
+            attrs_img={"alt": f"Commits/{interval_text[interval].title()}" if interval != 't' else "Total commits", "title": title},
             attrs_a={"href": link},
         )
 
@@ -116,7 +117,7 @@ class GitHubBadger(_shields.Badger):
     def commits_since_latest_release(
         self,
         include_prereleases: bool = True,
-        sort: Literal["date", "semver"] = "semver",
+        sort: Literal["date", "semver"] = "date",
         filter: str | None = None,
         branch: str | None = None,
     ) -> _shields.Badge:
@@ -126,7 +127,7 @@ class GitHubBadger(_shields.Badger):
         ----------
         include_prereleases : bool, default: True
             Whether to include prereleases.
-        sort : {'date', 'semver'}, default: 'semver'
+        sort : {'date', 'semver'}, default: 'date'
             Sort the releases by date or by Semantic Versioning.
         filter : str, optional
             Filter the tags/release names before selecting the latest from the list.
@@ -209,6 +210,24 @@ class GitHubBadger(_shields.Badger):
             attrs_a={"href": link},
         )
 
+    def contributors(self, include_anon: bool = True) -> _shields.Badge:
+        """Number of contributors.
+
+        References
+        ----------
+        - [Shields.io API - GitHub contributors](https://shields.io/badges/git-hub-contributors)
+        """
+        metric = "contributors-anon" if include_anon else "contributors"
+        return self.create(
+            path=f"{metric}/{self._endpoint_key}",
+            params={"label": "Contributors"},
+            attrs_img={
+                "alt": "Repository contributors",
+                "title": "Total number of contributors. Click to see the full list of contributors."
+            },
+            attrs_a={"href": self._repo_link.contributors()}
+        )
+
     def created_at(
         self,
     ) -> _shields.Badge:
@@ -278,7 +297,7 @@ class GitHubBadger(_shields.Badger):
     def release_date(
         self,
         include_prereleases: bool = True,
-        display_date: Literal["created_at", "published_at"] = "created_at",
+        display_date: Literal["created_at", "published_at"] = "published_at",
     ) -> _shields.Badge:
         """Date of the latest release.
 
@@ -364,7 +383,7 @@ class GitHubBadger(_shields.Badger):
             },
         )
 
-    def actions_workflow_status(
+    def workflow_status(
         self,
         workflow: str,
         branch: str | None = None,
@@ -655,11 +674,12 @@ class GitHubBadger(_shields.Badger):
         """
         return self.create(
             path=f"deployments/{self._endpoint_key}/{environment}",
-            params={"label": f"Deployment ({environment})"},
+            params={"label": f"CD {environment}"},
             attrs_img={
                 "alt": "Deployment Status",
                 "title": f"Deployment status for '{environment}' environment."
             },
+            attrs_a={"href": self._repo_link.homepage / "deployments" / environment}
         )
 
     def discussion_count(
