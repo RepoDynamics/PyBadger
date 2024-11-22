@@ -42,7 +42,7 @@ def create(
                 required_params.append(param_name)
         for param in required_params:
             if param not in args:
-                raise TypeError(f"Missing required parameter '{param}'")
+                raise TypeError(f"Missing required parameter '{param}' for service '{service}', endpoint {endpoint}")
         return {param: args[param] for param in params if param in args}
 
     module = {"shields": shields, "pepy": pepy}[platform]
