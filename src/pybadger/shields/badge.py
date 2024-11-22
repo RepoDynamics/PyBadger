@@ -19,7 +19,9 @@ class Badge(pybadger.Badge):
             components = string.split('_')
             return ''.join([components[0]] + [x.title() for x in components[1:]])
 
-        def process_logo(logo) -> str:
+        def process_logo(logo) -> str | None:
+            if not logo:
+                return
             logo = str(logo)
             logo_type = params.get("logo_type")
             logo_media_type = params.get("logo_media_type")
@@ -60,5 +62,6 @@ class Badge(pybadger.Badge):
                 shields_param_name = snake_to_camel(param)
                 value = params[param]
                 value_processed = param_processor(value) if param_processor else value
-                url.queries[shields_param_name] = value_processed
+                if value_processed is not None:
+                    url.queries[shields_param_name] = value_processed
         return url
