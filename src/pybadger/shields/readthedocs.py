@@ -6,7 +6,7 @@ from pybadger import shields as _shields
 class ReadTheDocsBadger(_shields.Badger):
     """Shields.io badge generator for ReadTheDocs."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, validate_urls: bool = False):
         """Create a ReadTheDocs badger.
 
         Parameters
@@ -16,7 +16,7 @@ class ReadTheDocsBadger(_shields.Badger):
         """
         super().__init__(base_path="readthedocs")
         self._name = name
-        self._link = _pylinks.site.readthedocs.project(name=name)
+        self._link = _pylinks.site.readthedocs.project(name=name, validate=validate_urls)
         return
 
     def build_status(self, version: str | None = None) -> _shields.Badge:
